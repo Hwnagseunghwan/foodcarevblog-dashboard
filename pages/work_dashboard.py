@@ -335,52 +335,44 @@ else:
             grp_kw_total = grp_kw_total.merge(exposed_grp, on="year_month", how="left").fillna(0)
 
             st.subheader("월별 키워드 수 (최근 6개월)")
-            bar_kw = alt.Chart(grp_kw.sort_values("year_month")).mark_bar().encode(
+            kw_cmp = grp_kw_total[["year_month", "키워드수", "노출수"]].melt(
+                id_vars="year_month", value_vars=["키워드수", "노출수"], var_name="구분", value_name="값"
+            )
+            kw_cmp["구분"] = kw_cmp["구분"].map({"키워드수": "전체 키워드", "노출수": "노출 키워드"})
+            bar_kw = alt.Chart(kw_cmp.sort_values("year_month")).mark_bar().encode(
                 x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("키워드수:Q", title="키워드 수"),
-                color=alt.Color("브랜드명:N", title="브랜드"),
-                tooltip=["year_month", "브랜드명", "키워드수", "검색량합계", "노출수"]
+                y=alt.Y("값:Q", title="키워드 수"),
+                color=alt.Color("구분:N", scale=alt.Scale(domain=["전체 키워드", "노출 키워드"], range=["steelblue", "orange"])),
+                xOffset="구분:N",
+                tooltip=["year_month", "구분", "값"]
             )
-            text_kw = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            text_kw = alt.Chart(kw_cmp).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("year_month:N", sort=None),
-                y=alt.Y("키워드수:Q"),
-                text=alt.Text("키워드수:Q")
+                xOffset="구분:N",
+                y=alt.Y("값:Q"),
+                text=alt.Text("값:Q")
             )
-            line_exp_kw = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
-                x=alt.X("year_month:N", sort=None),
-                y=alt.Y("노출수:Q"),
-                tooltip=["year_month", alt.Tooltip("노출수:Q", title="노출 키워드수")]
-            )
-            text_exp_kw = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
-                x=alt.X("year_month:N", sort=None),
-                y=alt.Y("노출수:Q"),
-                text=alt.Text("노출수:Q")
-            )
-            st.altair_chart(bar_kw + text_kw + line_exp_kw + text_exp_kw, use_container_width=True)
+            st.altair_chart(bar_kw + text_kw, use_container_width=True)
 
             st.subheader("월별 검색량(M) 합계 (최근 6개월)")
-            bar_sv = alt.Chart(grp_kw.sort_values("year_month")).mark_bar().encode(
+            sv_cmp = grp_kw_total[["year_month", "검색량합계", "노출검색량"]].melt(
+                id_vars="year_month", value_vars=["검색량합계", "노출검색량"], var_name="구분", value_name="값"
+            )
+            sv_cmp["구분"] = sv_cmp["구분"].map({"검색량합계": "전체 검색량", "노출검색량": "노출 검색량"})
+            bar_sv = alt.Chart(sv_cmp.sort_values("year_month")).mark_bar().encode(
                 x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
-                color=alt.Color("브랜드명:N", title="브랜드"),
-                tooltip=["year_month", "브랜드명", "검색량합계"]
+                y=alt.Y("값:Q", title="검색량(M)"),
+                color=alt.Color("구분:N", scale=alt.Scale(domain=["전체 검색량", "노출 검색량"], range=["steelblue", "orange"])),
+                xOffset="구분:N",
+                tooltip=["year_month", "구분", alt.Tooltip("값:Q", format=",")]
             )
-            text_sv = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            text_sv = alt.Chart(sv_cmp).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("year_month:N", sort=None),
-                y=alt.Y("검색량합계:Q"),
-                text=alt.Text("검색량합계:Q", format=",")
+                xOffset="구분:N",
+                y=alt.Y("값:Q"),
+                text=alt.Text("값:Q", format=",")
             )
-            line_exp_sv = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
-                x=alt.X("year_month:N", sort=None),
-                y=alt.Y("노출검색량:Q"),
-                tooltip=["year_month", alt.Tooltip("노출검색량:Q", title="노출 검색량(M)", format=",")]
-            )
-            text_exp_sv = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
-                x=alt.X("year_month:N", sort=None),
-                y=alt.Y("노출검색량:Q"),
-                text=alt.Text("노출검색량:Q", format=",")
-            )
-            st.altair_chart(bar_sv + text_sv + line_exp_sv + text_exp_sv, use_container_width=True)
+            st.altair_chart(bar_sv + text_sv, use_container_width=True)
 
         elif f_kw_view == "주간별":
             cutoff = max_kw_date - pd.Timedelta(days=89)
@@ -402,52 +394,44 @@ else:
             grp_kw_total = grp_kw_total.merge(exposed_grp, on="week_label", how="left").fillna(0)
 
             st.subheader("주간별 키워드 수 (최근 90일)")
-            bar_kw = alt.Chart(grp_kw.sort_values("week_label")).mark_bar().encode(
+            kw_cmp = grp_kw_total[["week_label", "키워드수", "노출수"]].melt(
+                id_vars="week_label", value_vars=["키워드수", "노출수"], var_name="구분", value_name="값"
+            )
+            kw_cmp["구분"] = kw_cmp["구분"].map({"키워드수": "전체 키워드", "노출수": "노출 키워드"})
+            bar_kw = alt.Chart(kw_cmp.sort_values("week_label")).mark_bar().encode(
                 x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("키워드수:Q", title="키워드 수"),
-                color=alt.Color("브랜드명:N", title="브랜드"),
-                tooltip=["week_label", "브랜드명", "키워드수", "검색량합계", "노출수"]
+                y=alt.Y("값:Q", title="키워드 수"),
+                color=alt.Color("구분:N", scale=alt.Scale(domain=["전체 키워드", "노출 키워드"], range=["steelblue", "orange"])),
+                xOffset="구분:N",
+                tooltip=["week_label", "구분", "값"]
             )
-            text_kw = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            text_kw = alt.Chart(kw_cmp).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("week_label:N", sort=None),
-                y=alt.Y("키워드수:Q"),
-                text=alt.Text("키워드수:Q")
+                xOffset="구분:N",
+                y=alt.Y("값:Q"),
+                text=alt.Text("값:Q")
             )
-            line_exp_kw = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
-                x=alt.X("week_label:N", sort=None),
-                y=alt.Y("노출수:Q"),
-                tooltip=["week_label", alt.Tooltip("노출수:Q", title="노출 키워드수")]
-            )
-            text_exp_kw = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
-                x=alt.X("week_label:N", sort=None),
-                y=alt.Y("노출수:Q"),
-                text=alt.Text("노출수:Q")
-            )
-            st.altair_chart(bar_kw + text_kw + line_exp_kw + text_exp_kw, use_container_width=True)
+            st.altair_chart(bar_kw + text_kw, use_container_width=True)
 
             st.subheader("주간별 검색량(M) 합계 (최근 90일)")
-            bar_sv = alt.Chart(grp_kw.sort_values("week_label")).mark_bar().encode(
+            sv_cmp = grp_kw_total[["week_label", "검색량합계", "노출검색량"]].melt(
+                id_vars="week_label", value_vars=["검색량합계", "노출검색량"], var_name="구분", value_name="값"
+            )
+            sv_cmp["구분"] = sv_cmp["구분"].map({"검색량합계": "전체 검색량", "노출검색량": "노출 검색량"})
+            bar_sv = alt.Chart(sv_cmp.sort_values("week_label")).mark_bar().encode(
                 x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
-                color=alt.Color("브랜드명:N", title="브랜드"),
-                tooltip=["week_label", "브랜드명", "검색량합계"]
+                y=alt.Y("값:Q", title="검색량(M)"),
+                color=alt.Color("구분:N", scale=alt.Scale(domain=["전체 검색량", "노출 검색량"], range=["steelblue", "orange"])),
+                xOffset="구분:N",
+                tooltip=["week_label", "구분", alt.Tooltip("값:Q", format=",")]
             )
-            text_sv = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            text_sv = alt.Chart(sv_cmp).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("week_label:N", sort=None),
-                y=alt.Y("검색량합계:Q"),
-                text=alt.Text("검색량합계:Q", format=",")
+                xOffset="구분:N",
+                y=alt.Y("값:Q"),
+                text=alt.Text("값:Q", format=",")
             )
-            line_exp_sv = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
-                x=alt.X("week_label:N", sort=None),
-                y=alt.Y("노출검색량:Q"),
-                tooltip=["week_label", alt.Tooltip("노출검색량:Q", title="노출 검색량(M)", format=",")]
-            )
-            text_exp_sv = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
-                x=alt.X("week_label:N", sort=None),
-                y=alt.Y("노출검색량:Q"),
-                text=alt.Text("노출검색량:Q", format=",")
-            )
-            st.altair_chart(bar_sv + text_sv + line_exp_sv + text_exp_sv, use_container_width=True)
+            st.altair_chart(bar_sv + text_sv, use_container_width=True)
 
         else:  # 일별
             cutoff = max_kw_date - pd.Timedelta(days=13)
@@ -471,52 +455,44 @@ else:
             grp_kw_total = grp_kw_total.merge(exposed_grp, on="date_str", how="left").fillna(0)
 
             st.subheader("일별 키워드 수 (최근 14일)")
-            bar_kw = alt.Chart(grp_kw.sort_values("date_str")).mark_bar().encode(
+            kw_cmp = grp_kw_total[["date_str", "키워드수", "노출수"]].melt(
+                id_vars="date_str", value_vars=["키워드수", "노출수"], var_name="구분", value_name="값"
+            )
+            kw_cmp["구분"] = kw_cmp["구분"].map({"키워드수": "전체 키워드", "노출수": "노출 키워드"})
+            bar_kw = alt.Chart(kw_cmp.sort_values("date_str")).mark_bar().encode(
                 x=alt.X("date_str:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("키워드수:Q", title="키워드 수"),
-                color=alt.Color("브랜드명:N", title="브랜드"),
-                tooltip=["date_str", "브랜드명", "키워드수", "검색량합계", "노출수"]
+                y=alt.Y("값:Q", title="키워드 수"),
+                color=alt.Color("구분:N", scale=alt.Scale(domain=["전체 키워드", "노출 키워드"], range=["steelblue", "orange"])),
+                xOffset="구분:N",
+                tooltip=["date_str", "구분", "값"]
             )
-            text_kw = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            text_kw = alt.Chart(kw_cmp).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("date_str:N", sort=None),
-                y=alt.Y("키워드수:Q"),
-                text=alt.Text("키워드수:Q")
+                xOffset="구분:N",
+                y=alt.Y("값:Q"),
+                text=alt.Text("값:Q")
             )
-            line_exp_kw = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
-                x=alt.X("date_str:N", sort=None),
-                y=alt.Y("노출수:Q"),
-                tooltip=["date_str", alt.Tooltip("노출수:Q", title="노출 키워드수")]
-            )
-            text_exp_kw = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
-                x=alt.X("date_str:N", sort=None),
-                y=alt.Y("노출수:Q"),
-                text=alt.Text("노출수:Q")
-            )
-            st.altair_chart(bar_kw + text_kw + line_exp_kw + text_exp_kw, use_container_width=True)
+            st.altair_chart(bar_kw + text_kw, use_container_width=True)
 
             st.subheader("일별 검색량(M) 합계 (최근 14일)")
-            bar_sv = alt.Chart(grp_kw.sort_values("date_str")).mark_bar().encode(
+            sv_cmp = grp_kw_total[["date_str", "검색량합계", "노출검색량"]].melt(
+                id_vars="date_str", value_vars=["검색량합계", "노출검색량"], var_name="구분", value_name="값"
+            )
+            sv_cmp["구분"] = sv_cmp["구분"].map({"검색량합계": "전체 검색량", "노출검색량": "노출 검색량"})
+            bar_sv = alt.Chart(sv_cmp.sort_values("date_str")).mark_bar().encode(
                 x=alt.X("date_str:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
-                color=alt.Color("브랜드명:N", title="브랜드"),
-                tooltip=["date_str", "브랜드명", "검색량합계"]
+                y=alt.Y("값:Q", title="검색량(M)"),
+                color=alt.Color("구분:N", scale=alt.Scale(domain=["전체 검색량", "노출 검색량"], range=["steelblue", "orange"])),
+                xOffset="구분:N",
+                tooltip=["date_str", "구분", alt.Tooltip("값:Q", format=",")]
             )
-            text_sv = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            text_sv = alt.Chart(sv_cmp).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("date_str:N", sort=None),
-                y=alt.Y("검색량합계:Q"),
-                text=alt.Text("검색량합계:Q", format=",")
+                xOffset="구분:N",
+                y=alt.Y("값:Q"),
+                text=alt.Text("값:Q", format=",")
             )
-            line_exp_sv = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
-                x=alt.X("date_str:N", sort=None),
-                y=alt.Y("노출검색량:Q"),
-                tooltip=["date_str", alt.Tooltip("노출검색량:Q", title="노출 검색량(M)", format=",")]
-            )
-            text_exp_sv = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
-                x=alt.X("date_str:N", sort=None),
-                y=alt.Y("노출검색량:Q"),
-                text=alt.Text("노출검색량:Q", format=",")
-            )
-            st.altair_chart(bar_sv + text_sv + line_exp_sv + text_exp_sv, use_container_width=True)
+            st.altair_chart(bar_sv + text_sv, use_container_width=True)
 
         st.divider()
 
