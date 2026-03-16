@@ -21,6 +21,7 @@ NAVER_PW = os.environ.get("NAVER_PW")
 BLOG_ID = os.environ.get("BLOG_ID", "nature_food")
 COOKIE_FILE = "naver_cookies.json"
 DATA_FILE = "blog_visitors.json"
+MONTHLY_FILE = "blog_visitors_monthly.json"
 START_DATE = "2026-03-01"
 
 
@@ -119,6 +120,64 @@ def save_data(existing: dict, new_data: dict) -> dict:
     return sorted_data
 
 
+async def fetch_monthly_api(page) -> dict:
+    """stat 프레임에서 최근 3개월 월별 데이터 수집"""
+    stat_frame = None
+    for frame in page.frames:
+        if "blog.stat.naver.com" in frame.url:
+            stat_frame = frame
+            break
+
+    if not stat_frame:
+        print("stat 프레임 없음 - 월별 수집 건너뜀")
+        return {}
+
+    result = {}
+    today = datetime.now()
+    # 최근 3개월치 커버 (현재월 포함, 이전 2개월)
+    for months_ago in range(3):
+        if months_ago == 0:
+            date_str = today.strftime("%Y-%m-%d")
+        else:
+            # 이전 달 1일로 이동
+            d = today.replace(day=1)
+            for _ in range(months_ago):
+                d = (d - timedelta(days=1)).replace(day=1)
+            date_str = d.strftime("%Y-%m-%d")
+
+        data = await stat_frame.evaluate(f"""
+            async () => {{
+                const url = 'https://blog.stat.naver.com/api/blog/daily/cv?timeDimension=MONTH&startDate={date_str}&exclude=&_=' + Date.now();
+                const r = await fetch(url, {{credentials: 'include'}});
+                const d = await r.json();
+                const rows = d?.result?.statDataList?.[0]?.data?.rows || {{}};
+                const res = {{}};
+                (rows.date || []).forEach((d, i) => {{ res[d] = (rows.cv || [])[i]; }});
+                return res;
+            }}
+        """)
+        for d, v in (data or {}).items():
+            result[d] = v
+        await asyncio.sleep(0.5)
+
+    return result
+
+
+def load_monthly_data() -> dict:
+    if Path(MONTHLY_FILE).exists():
+        with open(MONTHLY_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def save_monthly_data(existing: dict, new_data: dict) -> dict:
+    merged = {**existing, **new_data}
+    sorted_data = dict(sorted(merged.items()))
+    with open(MONTHLY_FILE, "w", encoding="utf-8") as f:
+        json.dump(sorted_data, f, ensure_ascii=False, indent=2)
+    return sorted_data
+
+
 def print_summary(data: dict):
     print("\n=== 수집 결과 ===")
     recent = {k: v for k, v in data.items() if k >= START_DATE}
@@ -146,19 +205,29 @@ async def main():
         else:
             await login(page, context)
 
-        print("조회수 데이터 수집 중...")
+        print("일별 조회수 데이터 수집 중...")
         new_data = await fetch_stat_api(page, START_DATE)
+
+        print("월별 조회수 데이터 수집 중...")
+        new_monthly = await fetch_monthly_api(page)
         await browser.close()
 
     if not new_data:
-        print("데이터 수집 실패")
+        print("일별 데이터 수집 실패")
         return
 
+    # 일별 저장
     new_data = {k: v for k, v in new_data.items() if k <= yesterday}
     existing = load_existing_data()
     merged = save_data(existing, new_data)
     print_summary(merged)
-    print(f"\n저장 완료: {DATA_FILE}")
+    print(f"\n일별 저장 완료: {DATA_FILE}")
+
+    # 월별 저장
+    if new_monthly:
+        existing_monthly = load_monthly_data()
+        merged_monthly = save_monthly_data(existing_monthly, new_monthly)
+        print(f"월별 저장 완료: {MONTHLY_FILE} ({len(merged_monthly)}개월치)")
 
 
 if __name__ == "__main__":
