@@ -95,12 +95,40 @@ else:
         total_sent = len(df_dedup)
         df_sent = df_dedup.dropna(subset=["parsed_date"]).copy()
 
+        # code별 키워드 수 / 검색량 합계 계산
+        kw_stats = df.groupby("code").agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum")
+        ).reset_index()
+        avg_kw = kw_stats["키워드수"].mean()
+        avg_search = kw_stats["검색량합계"].mean()
+
         # 상단 요약 지표
         col_s1, col_s2, col_s3, col_s4 = st.columns(4)
         col_s1.metric("총 원고 송출량", f"{total_sent}건")
         for i, writer in enumerate(sorted(df_dedup["작성자"].dropna().unique())):
             cnt = len(df_dedup[df_dedup["작성자"] == writer])
             [col_s2, col_s3, col_s4][i].metric(f"{writer}", f"{cnt}건")
+
+        st.divider()
+
+        # 원고별 키워드/검색량 요약 테이블
+        st.subheader("원고 송출량 키워드 현황")
+        col_k1, col_k2 = st.columns(2)
+        col_k1.metric("원고당 평균 키워드 수", f"{avg_kw:.1f}개")
+        col_k2.metric("원고당 평균 검색량(M) 합계", f"{avg_search:,.0f}")
+
+        # code별 상세 테이블 (dedup 기준 + 키워드 수/검색량 합계 join)
+        tbl = df_dedup[["code", "작성자", "브랜드명", "제품명", "parsed_date"]].copy()
+        tbl = tbl.merge(kw_stats, on="code", how="left")
+        tbl["parsed_date"] = tbl["parsed_date"].dt.strftime("%Y-%m-%d").where(tbl["parsed_date"].notna(), "")
+        tbl.columns = ["code", "작성자", "브랜드명", "제품명", "날짜", "키워드 수", "검색량(M) 합계"]
+        tbl = tbl.sort_values("날짜", ascending=False).reset_index(drop=True)
+
+        with st.expander("총 원고 송출량 상세 보기"):
+            st.dataframe(tbl, use_container_width=True, height=400)
+            csv_k = tbl.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button("CSV 다운로드", data=csv_k, file_name="work_sent_kw.csv", mime="text/csv")
 
         st.divider()
 
