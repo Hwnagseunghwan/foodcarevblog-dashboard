@@ -24,6 +24,14 @@ st.set_page_config(
 from dotenv import load_dotenv
 load_dotenv()
 BLOG_ID = os.environ.get("BLOG_ID", "nature_food")
+
+# 자동 생성 사이드바 네비게이션 숨기고 커스텀 링크로 교체
+st.markdown("""
+<style>[data-testid="stSidebarNav"] { display: none; }</style>
+""", unsafe_allow_html=True)
+st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Dashboard")
+st.sidebar.page_link("pages/vola_dashboard.py", label="🔗 Vola Dashboard")
+
 st.markdown("<a id='cle-blog-dashboard'></a>", unsafe_allow_html=True)
 st.title(f"📊 Cle 공식블로그 조회수 대시보드({BLOG_ID})")
 st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -481,12 +489,6 @@ with tab4:
         """)
 
 # ── 사이드바 ──────────────────────────────────────
-st.sidebar.markdown(
-    "<a href='#cle-blog-dashboard' style='display:block; text-align:center; "
-    "padding:8px; background:#4C78A8; color:white; border-radius:6px; "
-    "text-decoration:none; font-weight:bold;'>📊 Cle Blog Dashboard</a>",
-    unsafe_allow_html=True
-)
 st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()
