@@ -328,7 +328,7 @@ else:
         show_df["parsed_date"] = show_df["parsed_date"].dt.strftime("%Y-%m-%d").where(show_df["parsed_date"].notna(), "")
 
         st.dataframe(
-            show_df.sort_values("date", ascending=False).reset_index(drop=True),
+            show_df.sort_values("parsed_date", ascending=False).reset_index(drop=True),
             use_container_width=True,
             height=500,
             column_config={
