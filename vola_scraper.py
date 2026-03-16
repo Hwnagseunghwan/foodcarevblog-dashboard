@@ -78,6 +78,7 @@ def main():
             "longurl": link["longurl"],
             "title": link.get("title") or "",
             "total_clicks": link["clicks"],
+            "created_at": link.get("date", "")[:10],
         }
 
     # 기존 데이터 로드
@@ -93,6 +94,7 @@ def main():
             "title": info["title"],
             "shorturl": info["shorturl"],
             "longurl": info["longurl"],
+            "created_at": info.get("created_at", ""),
             "daily_clicks": daily,
             "total_clicks": info["total_clicks"],
         }

@@ -51,11 +51,19 @@ else:
     title_map = {}
     shorturl_map = {}
     longurl_map = {}
+    created_at_map = {}
     for d in all_dates:
         for alias, info in daily_vola[d].items():
             title_map[alias] = info.get("title", alias) or alias
             shorturl_map[alias] = info.get("shorturl", f"https://vo.la/{alias}")
             longurl_map[alias] = info.get("longurl", "")
+            created_at_map[alias] = info.get("created_at", "")
+
+    # snapshot에서 created_at 보완
+    for snap in vola.get("snapshots", {}).values():
+        for alias, info in snap.items():
+            if alias not in created_at_map or not created_at_map[alias]:
+                created_at_map[alias] = info.get("created_at", "")
 
     # URL 경로 기반 카테고리 분류
     def categorize(longurl):
@@ -80,6 +88,7 @@ else:
                 "shorturl": shorturl_map.get(alias, ""),
                 "longurl": longurl_map.get(alias, ""),
                 "category": categorize(longurl_map.get(alias, "")),
+                "created_at": created_at_map.get(alias, ""),
                 "daily_clicks": info.get("daily_clicks", 0),
                 "total_clicks": info.get("total_clicks", 0),
             })
@@ -87,7 +96,7 @@ else:
     df_all["date"] = pd.to_datetime(df_all["date"])
 
     # 탭 구성
-    tab1, tab2, tab3 = st.tabs(["📋 일별 현황 (최근 14일)", "🔗 링크별 현황", "📊 전체 데이터"])
+    tab2, tab1, tab3 = st.tabs(["🔗 링크별 현황", "📋 일별 현황 (최근 14일)", "📊 전체 데이터"])
 
     # ── 탭1: 일별 현황 ──────────────────────────────────────
     with tab1:
@@ -189,9 +198,13 @@ else:
         df_period = df_all[df_all["date"] >= period_map[selected_period]]
 
         # 링크별 합계
-        link_total = df_period.groupby(["alias", "title", "category", "shorturl", "longurl"])["daily_clicks"].sum().reset_index()
-        link_total.columns = ["alias", "title", "category", "shorturl", "longurl", "clicks"]
+        link_total = df_period.groupby(["alias", "title", "category", "shorturl", "longurl", "created_at"])["daily_clicks"].sum().reset_index()
+        link_total.columns = ["alias", "title", "category", "shorturl", "longurl", "created_at", "clicks"]
         link_total = link_total.sort_values("clicks", ascending=False).reset_index(drop=True)
+        # 차트용 레이블: 타이틀 (개설일)
+        link_total["title_label"] = link_total.apply(
+            lambda r: f"{r['title']} ({r['created_at']})" if r['created_at'] else r['title'], axis=1
+        )
 
         st.subheader(f"링크별 클릭수 합계 ({selected_period})")
 
@@ -206,24 +219,34 @@ else:
 
         bar_l = alt.Chart(link_filtered.head(20)).mark_bar().encode(
             x=alt.X("clicks:Q", title="클릭수"),
-            y=alt.Y("title:N", sort="-x", title="링크"),
+            y=alt.Y("title_label:N", sort="-x", title=None,
+                    axis=alt.Axis(labelLimit=500, labelFontSize=12)),
             color=alt.Color("category:N", title="카테고리"),
-            tooltip=["title", "category", "clicks", "shorturl"]
+            tooltip=["title_label", "category", "clicks", "shorturl"]
         )
         text_l = alt.Chart(link_filtered.head(20)).mark_text(dx=5, fontSize=11, align="left").encode(
             x=alt.X("clicks:Q"),
-            y=alt.Y("title:N", sort="-x"),
+            y=alt.Y("title_label:N", sort="-x"),
             text=alt.Text("clicks:Q", format=",")
         )
         st.altair_chart(bar_l + text_l, use_container_width=True)
 
         st.divider()
 
-        # 링크 상세 테이블
-        with st.expander("링크별 원본 데이터 보기"):
-            display_df = link_total[["title", "category", "alias", "clicks", "shorturl", "longurl"]].copy()
-            display_df.columns = ["타이틀", "카테고리", "alias", f"클릭수({selected_period})", "단축URL", "원본URL"]
-            st.dataframe(display_df, use_container_width=True, height=400)
+        # 링크 테이블 (클릭 가능한 링크 포함)
+        display_df = link_filtered[["title", "created_at", "category", "clicks", "shorturl", "longurl"]].copy()
+        display_df.columns = ["타이틀", "개설일", "카테고리", f"클릭수({selected_period})", "단축URL", "원본URL"]
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            height=min(50 + len(display_df) * 35, 500),
+            column_config={
+                "단축URL": st.column_config.LinkColumn("단축URL", display_text="🔗 링크"),
+                "원본URL": st.column_config.LinkColumn("원본URL", display_text="🌐 이동"),
+            }
+        )
+
+        with st.expander("CSV 다운로드"):
             csv_l = display_df.to_csv(index=False, encoding="utf-8-sig")
             st.download_button("CSV 다운로드", data=csv_l, file_name="vola_links.csv", mime="text/csv")
 
