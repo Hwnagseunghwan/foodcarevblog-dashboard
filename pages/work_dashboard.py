@@ -88,7 +88,7 @@ else:
     dedup_cols = [c for c in dedup_cols if c in df.columns]
     df_dedup = df.drop_duplicates(subset=["code"])[dedup_cols].copy()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 현황 요약", "📨 원고 송출량", "🔍 원고 목록", "💰 비용 분석"])
+    tab1, tab2, tab5, tab3, tab4 = st.tabs(["📊 현황 요약", "📨 원고 송출량", "🔑 키워드 노출량", "🔍 원고 목록", "💰 비용 분석"])
 
     # ── 탭2: 원고 송출량 ──────────────────────────────────────
     with tab2:
@@ -266,6 +266,216 @@ else:
             )
             csv = show.to_csv(index=False, encoding="utf-8-sig")
             st.download_button("CSV 다운로드", data=csv, file_name="work_sent.csv", mime="text/csv")
+
+    # ── 탭5: 키워드 노출량 ──────────────────────────────────────
+    with tab5:
+        # 키워드 기준 전체 데이터 (중복 제거 없음)
+        df_kw = df.dropna(subset=["parsed_date"]).copy()
+        df_kw["노출여부"] = df_kw["노출여부"].astype(str).str.strip()
+        EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE"]
+
+        total_kw = len(df_kw)
+        exposed_kw = len(df_kw[df_kw["노출여부"].isin(EXPOSED_VAL)])
+        exposure_rate_kw = exposed_kw / total_kw * 100 if total_kw > 0 else 0
+        total_search = df_kw["검색량(M)"].sum()
+
+        # 상단 지표
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric("총 키워드 수", f"{total_kw:,}개")
+        col_k2.metric("노출 키워드", f"{exposed_kw:,}개")
+        col_k3.metric("키워드 노출률", f"{exposure_rate_kw:.1f}%")
+        col_k4.metric("총 검색량(M) 합계", f"{total_search:,.0f}")
+
+        st.divider()
+
+        # 필터
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        f_kw_brand   = col_f1.selectbox("브랜드 필터", ["전체"] + sorted(df_kw["브랜드명"].dropna().unique().tolist()), key="kw_brand")
+        f_kw_product = col_f2.selectbox("제품 필터", ["전체"] + sorted(df_kw["제품명"].dropna().unique().tolist()), key="kw_product")
+        f_kw_exposed = col_f3.selectbox("노출여부 필터", ["전체", "노출", "미노출"], key="kw_exposed")
+        f_kw_view    = col_f4.selectbox("단위", ["월별", "주간별", "일별"], key="kw_view")
+
+        df_kf = df_kw.copy()
+        if f_kw_brand != "전체":
+            df_kf = df_kf[df_kf["브랜드명"] == f_kw_brand]
+        if f_kw_product != "전체":
+            df_kf = df_kf[df_kf["제품명"] == f_kw_product]
+        if f_kw_exposed == "노출":
+            df_kf = df_kf[df_kf["노출여부"].isin(EXPOSED_VAL)]
+        elif f_kw_exposed == "미노출":
+            df_kf = df_kf[~df_kf["노출여부"].isin(EXPOSED_VAL)]
+
+        st.divider()
+
+        max_kw_date = df_kf["parsed_date"].max()
+
+        if f_kw_view == "월별":
+            cutoff = max_kw_date - pd.DateOffset(months=5)
+            df_kv = df_kf[df_kf["parsed_date"] >= cutoff.replace(day=1)]
+
+            # 키워드 수
+            grp_kw = df_kv.groupby(["year_month", "브랜드명"]).agg(
+                키워드수=("키워드", "count"),
+                검색량합계=("검색량(M)", "sum"),
+                노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+            ).reset_index()
+            grp_kw_total = df_kv.groupby("year_month").agg(
+                키워드수=("키워드", "count"),
+                검색량합계=("검색량(M)", "sum")
+            ).reset_index().sort_values("year_month")
+
+            st.subheader("월별 키워드 수 (최근 6개월)")
+            bar_kw = alt.Chart(grp_kw.sort_values("year_month")).mark_bar().encode(
+                x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("키워드수:Q", title="키워드 수"),
+                color=alt.Color("브랜드명:N", title="브랜드"),
+                tooltip=["year_month", "브랜드명", "키워드수", "검색량합계", "노출수"]
+            )
+            text_kw = alt.Chart(grp_kw_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("year_month:N", sort=None),
+                y=alt.Y("키워드수:Q"),
+                text=alt.Text("키워드수:Q")
+            )
+            st.altair_chart(bar_kw + text_kw, use_container_width=True)
+
+            st.subheader("월별 검색량(M) 합계 (최근 6개월)")
+            bar_sv = alt.Chart(grp_kw.sort_values("year_month")).mark_bar().encode(
+                x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
+                color=alt.Color("브랜드명:N", title="브랜드"),
+                tooltip=["year_month", "브랜드명", "검색량합계"]
+            )
+            text_sv = alt.Chart(grp_kw_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("year_month:N", sort=None),
+                y=alt.Y("검색량합계:Q"),
+                text=alt.Text("검색량합계:Q", format=",")
+            )
+            st.altair_chart(bar_sv + text_sv, use_container_width=True)
+
+        elif f_kw_view == "주간별":
+            cutoff = max_kw_date - pd.Timedelta(days=89)
+            df_kv = df_kf[df_kf["parsed_date"] >= cutoff]
+
+            grp_kw = df_kv.groupby(["week_label", "브랜드명"]).agg(
+                키워드수=("키워드", "count"),
+                검색량합계=("검색량(M)", "sum"),
+                노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+            ).reset_index()
+            grp_kw_total = df_kv.groupby("week_label").agg(
+                키워드수=("키워드", "count"),
+                검색량합계=("검색량(M)", "sum")
+            ).reset_index().sort_values("week_label")
+
+            st.subheader("주간별 키워드 수 (최근 90일)")
+            bar_kw = alt.Chart(grp_kw.sort_values("week_label")).mark_bar().encode(
+                x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("키워드수:Q", title="키워드 수"),
+                color=alt.Color("브랜드명:N", title="브랜드"),
+                tooltip=["week_label", "브랜드명", "키워드수", "검색량합계", "노출수"]
+            )
+            text_kw = alt.Chart(grp_kw_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("week_label:N", sort=None),
+                y=alt.Y("키워드수:Q"),
+                text=alt.Text("키워드수:Q")
+            )
+            st.altair_chart(bar_kw + text_kw, use_container_width=True)
+
+            st.subheader("주간별 검색량(M) 합계 (최근 90일)")
+            bar_sv = alt.Chart(grp_kw.sort_values("week_label")).mark_bar().encode(
+                x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
+                color=alt.Color("브랜드명:N", title="브랜드"),
+                tooltip=["week_label", "브랜드명", "검색량합계"]
+            )
+            text_sv = alt.Chart(grp_kw_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("week_label:N", sort=None),
+                y=alt.Y("검색량합계:Q"),
+                text=alt.Text("검색량합계:Q", format=",")
+            )
+            st.altair_chart(bar_sv + text_sv, use_container_width=True)
+
+        else:  # 일별
+            cutoff = max_kw_date - pd.Timedelta(days=13)
+            df_kv = df_kf[df_kf["parsed_date"] >= cutoff]
+
+            df_kv = df_kv.copy()
+            df_kv["date_str"] = df_kv["parsed_date"].dt.strftime("%Y-%m-%d")
+            grp_kw = df_kv.groupby(["date_str", "브랜드명"]).agg(
+                키워드수=("키워드", "count"),
+                검색량합계=("검색량(M)", "sum"),
+                노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+            ).reset_index()
+            grp_kw_total = df_kv.groupby("date_str").agg(
+                키워드수=("키워드", "count"),
+                검색량합계=("검색량(M)", "sum")
+            ).reset_index().sort_values("date_str")
+
+            st.subheader("일별 키워드 수 (최근 14일)")
+            bar_kw = alt.Chart(grp_kw.sort_values("date_str")).mark_bar().encode(
+                x=alt.X("date_str:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("키워드수:Q", title="키워드 수"),
+                color=alt.Color("브랜드명:N", title="브랜드"),
+                tooltip=["date_str", "브랜드명", "키워드수", "검색량합계", "노출수"]
+            )
+            text_kw = alt.Chart(grp_kw_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("date_str:N", sort=None),
+                y=alt.Y("키워드수:Q"),
+                text=alt.Text("키워드수:Q")
+            )
+            st.altair_chart(bar_kw + text_kw, use_container_width=True)
+
+            st.subheader("일별 검색량(M) 합계 (최근 14일)")
+            bar_sv = alt.Chart(grp_kw.sort_values("date_str")).mark_bar().encode(
+                x=alt.X("date_str:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
+                color=alt.Color("브랜드명:N", title="브랜드"),
+                tooltip=["date_str", "브랜드명", "검색량합계"]
+            )
+            text_sv = alt.Chart(grp_kw_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("date_str:N", sort=None),
+                y=alt.Y("검색량합계:Q"),
+                text=alt.Text("검색량합계:Q", format=",")
+            )
+            st.altair_chart(bar_sv + text_sv, use_container_width=True)
+
+        st.divider()
+
+        # 제품별 키워드/검색량/노출 현황
+        st.subheader("제품별 키워드 현황")
+        prod_grp = df_kf.groupby(["제품명", "브랜드명"]).agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum"),
+            노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+        ).reset_index()
+        prod_grp["노출률"] = (prod_grp["노출수"] / prod_grp["키워드수"] * 100).round(1)
+        prod_grp = prod_grp.sort_values("키워드수", ascending=False).reset_index(drop=True)
+        st.dataframe(
+            prod_grp,
+            use_container_width=True,
+            height=min(50 + len(prod_grp) * 35, 400),
+            column_config={
+                "검색량합계": st.column_config.NumberColumn(format="%,.0f"),
+                "노출률": st.column_config.NumberColumn(format="%.1f%%"),
+            }
+        )
+
+        st.divider()
+
+        # 키워드 원본 데이터
+        with st.expander("키워드 원본 데이터 보기"):
+            kw_show = df_kf[["parsed_date", "브랜드명", "제품명", "메인/서브", "키워드", "검색량(M)", "노출여부", "최초순위", "Blog_URL"]].copy()
+            kw_show["parsed_date"] = kw_show["parsed_date"].dt.strftime("%Y-%m-%d")
+            kw_show = kw_show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
+            st.dataframe(
+                kw_show,
+                use_container_width=True,
+                height=400,
+                column_config={
+                    "Blog_URL": st.column_config.LinkColumn("Blog_URL", display_text="🔗 블로그"),
+                }
+            )
+            csv_kw = kw_show.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button("CSV 다운로드", data=csv_kw, file_name="keyword_data.csv", mime="text/csv")
 
     # ── 탭1: 현황 요약 ──────────────────────────────────────
     with tab1:
