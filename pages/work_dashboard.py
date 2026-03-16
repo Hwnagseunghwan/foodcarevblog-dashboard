@@ -271,7 +271,8 @@ else:
     with tab5:
         # 키워드 기준 전체 데이터 (중복 제거 없음, code 없는 행 제외)
         df_kw = df.dropna(subset=["parsed_date"]).copy()
-        df_kw = df_kw[df_kw["code"].astype(str).str.strip().ne("") & df_kw["code"].notna()]
+        _code_str = df_kw["code"].astype(str).str.strip()
+        df_kw = df_kw[~_code_str.isin(["", "nan", "None", "코드없음"])]
         df_kw["노출여부"] = df_kw["노출여부"].astype(str).str.strip()
         EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"]
 
