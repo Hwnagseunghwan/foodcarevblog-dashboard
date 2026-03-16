@@ -244,10 +244,10 @@ else:
         st.divider()
 
         # 월별 원고 발행 수
-        df_dated = df.dropna(subset=["date"])
+        df_dated = df.dropna(subset=["parsed_date"])
         if not df_dated.empty:
             df_dated = df_dated.copy()
-            df_dated["year_month"] = df_dated["date"].dt.strftime("%Y-%m")
+            df_dated["year_month"] = df_dated["parsed_date"].dt.strftime("%Y-%m")
             monthly = df_dated.groupby("year_month").size().reset_index(name="건수")
             monthly = monthly.sort_values("year_month")
 
@@ -322,10 +322,10 @@ else:
 
         st.caption(f"필터 결과: {len(filtered)}건")
 
-        display_cols = ["date", "메인/서브", "키워드", "원고유형", "제목", "노출여부", "최초순위", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]
+        display_cols = ["parsed_date", "메인/서브", "키워드", "원고유형", "제목", "노출여부", "최초순위", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]
         display_cols = [c for c in display_cols if c in filtered.columns]
         show_df = filtered[display_cols].copy()
-        show_df["date"] = show_df["date"].dt.strftime("%Y-%m-%d").where(show_df["date"].notna(), "")
+        show_df["parsed_date"] = show_df["parsed_date"].dt.strftime("%Y-%m-%d").where(show_df["parsed_date"].notna(), "")
 
         st.dataframe(
             show_df.sort_values("date", ascending=False).reset_index(drop=True),
@@ -352,9 +352,9 @@ else:
 
         st.divider()
 
-        df_cost = df.dropna(subset=["date"]).copy()
+        df_cost = df.dropna(subset=["parsed_date"]).copy()
         if not df_cost.empty:
-            df_cost["year_month"] = df_cost["date"].dt.strftime("%Y-%m")
+            df_cost["year_month"] = df_cost["parsed_date"].dt.strftime("%Y-%m")
             cost_monthly = df_cost.groupby("year_month")[["원고비용", "작업비용", "송출비용"]].sum().reset_index()
             cost_monthly = cost_monthly.sort_values("year_month").tail(12)
             cost_melted = cost_monthly.melt(id_vars="year_month", var_name="비용유형", value_name="금액")
