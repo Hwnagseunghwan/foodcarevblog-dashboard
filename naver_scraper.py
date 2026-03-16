@@ -49,9 +49,8 @@ async def is_logged_in(page):
 
 async def login(page, context):
     print("네이버 로그인 중...")
-    await page.goto("https://nid.naver.com/nidlogin.login")
-    await page.wait_for_load_state("networkidle")
-    await asyncio.sleep(1)
+    await page.goto("https://nid.naver.com/nidlogin.login", wait_until="domcontentloaded", timeout=30000)
+    await asyncio.sleep(2)
 
     await page.click("#id")
     await page.type("#id", NAVER_ID, delay=80)
