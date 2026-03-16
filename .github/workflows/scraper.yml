@@ -25,7 +25,7 @@ jobs:
 
       - name: 패키지 설치
         run: |
-          pip install playwright gspread pandas python-dotenv requests
+          pip install playwright gspread pandas python-dotenv requests google-auth
           playwright install chromium --with-deps
 
       - name: 블로그 조회수 수집 실행
@@ -41,10 +41,15 @@ jobs:
           VOLA_API_KEY: ${{ secrets.VOLA_API_KEY }}
         run: python vola_scraper.py
 
+      - name: 업무시트 수집 실행
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: python sheets_scraper.py
+
       - name: 데이터 커밋 & 푸시
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add blog_visitors.json blog_visitors_monthly.json vola_clicks.json
-          git diff --staged --quiet || git commit -m "data: $(date +'%Y-%m-%d') 조회수 업데이트 (블로그+VOLA)"
+          git add blog_visitors.json blog_visitors_monthly.json vola_clicks.json work_data.json
+          git diff --staged --quiet || git commit -m "data: $(date +'%Y-%m-%d') 데이터 업데이트 (블로그+VOLA+업무시트)"
           git push

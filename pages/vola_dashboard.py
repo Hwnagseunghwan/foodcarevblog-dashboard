@@ -25,6 +25,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Dashboard")
 st.sidebar.page_link("pages/vola_dashboard.py", label="🔗 Vola Dashboard")
+st.sidebar.page_link("pages/work_dashboard.py", label="📋 Work Dashboard")
 
 st.markdown("<a id='vola-dashboard'></a>", unsafe_allow_html=True)
 st.title("🔗 VOLA 단축URL 클릭수 대시보드")
