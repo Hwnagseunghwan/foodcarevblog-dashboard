@@ -142,13 +142,19 @@ else:
 
             st.subheader("월별 브랜드별 송출량 (최근 6개월)")
             grp_brand = df_view.groupby(["year_month", "브랜드명"]).size().reset_index(name="송출량")
+            grp_brand_total = df_view.groupby("year_month").size().reset_index(name="송출량").sort_values("year_month")
             bar_b = alt.Chart(grp_brand.sort_values("year_month")).mark_bar().encode(
                 x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
                 color=alt.Color("브랜드명:N", title="브랜드명"),
                 tooltip=["year_month", "브랜드명", "송출량"]
             )
-            st.altair_chart(bar_b, use_container_width=True)
+            text_b = alt.Chart(grp_brand_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("year_month:N", sort=None),
+                y=alt.Y("송출량:Q"),
+                text=alt.Text("송출량:Q")
+            )
+            st.altair_chart(bar_b + text_b, use_container_width=True)
 
         elif f_view == "주간별":
             cutoff = max_date - pd.Timedelta(days=89)
