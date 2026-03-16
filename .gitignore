@@ -1,0 +1,6 @@
+.env
+naver_cookies.json
+*.log
+debug_*.png
+__pycache__/
+*.pyc
