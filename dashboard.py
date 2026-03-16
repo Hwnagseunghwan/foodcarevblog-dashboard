@@ -8,6 +8,7 @@ import os
 import json
 import pandas as pd
 import streamlit as st
+import altair as alt
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -22,7 +23,7 @@ st.set_page_config(
 
 from dotenv import load_dotenv
 load_dotenv()
-BLOG_ID = os.environ.get("BLOG_ID", "zen896")
+BLOG_ID = os.environ.get("BLOG_ID", "nature_food")
 st.title(f"📊 네이버 블로그 {BLOG_ID} 조회수 대시보드")
 st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
@@ -53,62 +54,70 @@ def load_monthly_data():
     return df
 
 
-tab1, tab2 = st.tabs(["📅 일별 현황 (최근 90일)", "📆 월별 추이 (3년)"])
+tab2, tab1 = st.tabs(["📆 월별 추이 (6개월)", "📅 주간 현황 (최근 90일)"])
 
-# ── 탭1: 일별 현황 ──────────────────────────────────────
+# ── 탭1: 주간 현황 ──────────────────────────────────────
 with tab1:
     df = load_daily_data()
 
     if df.empty:
         st.warning("일별 데이터가 없습니다. naver_scraper.py를 먼저 실행해주세요.")
     else:
-        # 기간 필터
-        col_f1, col_f2 = st.columns(2)
-        min_date = df["date"].min().date()
-        max_date = df["date"].max().date()
-        start = col_f1.date_input("시작일", value=min_date, min_value=min_date, max_value=max_date, key="daily_start")
-        end = col_f2.date_input("종료일", value=max_date, min_value=min_date, max_value=max_date, key="daily_end")
+        # ISO 주차 컬럼 생성 (엑셀 ISOWEEKNUM 기준: 월요일 시작)
+        iso = df["date"].dt.isocalendar()
+        df["iso_year"] = iso["year"]
+        df["iso_week"] = iso["week"]
+        # 주 시작일(월요일) 계산
+        df["week_start"] = df["date"] - pd.to_timedelta(df["date"].dt.dayofweek, unit="D")
+        df["week_label"] = df["week_start"].dt.strftime("%Y-%m-%d") + \
+                           " (W" + df["iso_week"].astype(str).str.zfill(2) + ")"
 
-        filtered = df[(df["date"].dt.date >= start) & (df["date"].dt.date <= end)]
+        # 주간 합산
+        weekly = df.groupby(["week_start", "week_label"], sort=True)["views"].sum().reset_index()
+        weekly.columns = ["week_start", "week_label", "views"]
 
-        # 요약 지표
-        total = int(filtered["views"].sum())
-        avg = filtered["views"].mean()
-        max_val = int(filtered["views"].max()) if not filtered.empty else 0
-        max_date_val = filtered.loc[filtered["views"].idxmax(), "date"].strftime("%Y-%m-%d") if not filtered.empty else "-"
-        recent_7 = int(filtered.tail(7)["views"].sum())
+        # 주간 조회수 합계 + 증감률 (최근 12주)
+        recent_13w = weekly.tail(13).reset_index(drop=True)  # 증감률 계산용 이전 주 포함
+        recent_12w = weekly.tail(12).reset_index(drop=True)
 
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("총 조회수", f"{total:,}")
-        col2.metric("일평균 조회수", f"{avg:.1f}")
-        col3.metric("최고 조회수", f"{max_val:,}", max_date_val)
-        col4.metric("최근 7일 조회수", f"{recent_7:,}")
+        st.subheader("주간 조회수 합계")
+        cols = st.columns(len(recent_12w))
+        for i, row in recent_12w.iterrows():
+            idx = len(recent_13w) - 12 + i
+            prev_views = int(recent_13w.loc[idx - 1, "views"]) if idx > 0 else None
+            curr_views = int(row["views"])
+            if prev_views and prev_views > 0:
+                rate = (curr_views - prev_views) / prev_views * 100
+                delta = f"{rate:+.1f}%"
+            else:
+                delta = None
+            cols[i].metric(row["week_label"], f"{curr_views:,}", delta)
 
         st.divider()
 
-        # 시계열 차트
-        st.subheader("일별 조회수 추이")
-        chart_df = filtered.set_index("date")[["views"]]
-        st.line_chart(chart_df, use_container_width=True, height=350)
+        # 주간 조회수 추이 차트 (최근 12주, 숫자 표시)
+        st.subheader("주간 조회수 추이 (ISOWEEKNUM 기준)")
+        bar = alt.Chart(recent_12w).mark_bar().encode(
+            x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("views:Q", title="조회수"),
+            tooltip=["week_label", "views"]
+        )
+        text = alt.Chart(recent_12w).mark_text(dy=-8, fontSize=11).encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("views:Q"),
+            text=alt.Text("views:Q", format=",")
+        )
+        st.altair_chart(bar + text, use_container_width=True)
 
-        # 주간 합계
-        st.subheader("주간 조회수 합계")
-        weekly = filtered.copy()
-        weekly["week"] = weekly["date"].dt.to_period("W").apply(lambda r: r.start_time.strftime("%Y-%m-%d"))
-        weekly_sum = weekly.groupby("week")["views"].sum().reset_index()
-        weekly_sum.columns = ["주 시작일", "조회수"]
-        st.bar_chart(weekly_sum.set_index("주 시작일"), use_container_width=True, height=250)
+        # 주간 데이터 테이블
+        with st.expander("주간 데이터 보기"):
+            table_w = weekly[["week_label", "views"]].copy()
+            table_w.columns = ["주 시작일 (ISO주차)", "조회수"]
+            table_w = table_w.sort_values("주 시작일 (ISO주차)", ascending=False).reset_index(drop=True)
+            st.dataframe(table_w, use_container_width=True, height=300)
 
-        # 데이터 테이블
-        with st.expander("원본 데이터 보기"):
-            table = filtered.copy()
-            table["date"] = table["date"].dt.strftime("%Y-%m-%d")
-            table.columns = ["날짜", "조회수"]
-            table = table.sort_values("날짜", ascending=False).reset_index(drop=True)
-            st.dataframe(table, use_container_width=True, height=300)
-
-            csv = table.to_csv(index=False, encoding="utf-8-sig")
-            st.download_button("CSV 다운로드", data=csv, file_name="blog_views_daily.csv", mime="text/csv")
+            csv = table_w.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button("CSV 다운로드", data=csv, file_name="blog_views_weekly.csv", mime="text/csv")
 
 # ── 탭2: 월별 추이 ──────────────────────────────────────
 with tab2:
@@ -117,44 +126,41 @@ with tab2:
     if mdf.empty:
         st.warning("월별 데이터가 없습니다. collect_history.py를 먼저 실행해주세요.")
     else:
-        # 연도별 요약
         mdf["year"] = mdf["month"].dt.year
         mdf["year_month"] = mdf["month"].dt.strftime("%Y-%m")
 
-        yearly = mdf.groupby("year")["views"].sum().reset_index()
-        yearly.columns = ["연도", "총 조회수"]
+        recent_6m = mdf.tail(6)
 
-        st.subheader("연도별 조회수 합계")
-        cols = st.columns(len(yearly))
-        for i, row in yearly.iterrows():
-            cols[i].metric(f"{int(row['연도'])}년", f"{int(row['총 조회수']):,}")
+        # 월별 조회수 지표 (최근 6개월 + 전월 대비 증가율)
+        recent_7m = mdf.tail(7).reset_index(drop=True)  # 증가율 계산용 이전달 포함
+        st.subheader("월별 조회수 합계")
+        cols = st.columns(len(recent_6m))
+        for i, (_, row) in enumerate(recent_6m.iterrows()):
+            idx = len(recent_7m) - 6 + i
+            prev_views = int(recent_7m.loc[idx - 1, "views"]) if idx > 0 else None
+            curr_views = int(row["views"])
+            if prev_views and prev_views > 0:
+                rate = (curr_views - prev_views) / prev_views * 100
+                delta = f"{rate:+.1f}%"
+            else:
+                delta = None
+            cols[i].metric(row["year_month"], f"{curr_views:,}", delta)
 
         st.divider()
 
-        # 월별 바 차트
-        st.subheader("월별 조회수 추이 (전체)")
-        monthly_chart = mdf.set_index("year_month")[["views"]]
-        monthly_chart.index.name = "월"
-        monthly_chart.columns = ["조회수"]
-        st.bar_chart(monthly_chart, use_container_width=True, height=350)
-
-        # 연도 선택 필터
-        st.subheader("연도별 상세 조회")
-        years = sorted(mdf["year"].unique(), reverse=True)
-        selected_year = st.selectbox("연도 선택", years)
-
-        year_data = mdf[mdf["year"] == selected_year].copy()
-        year_data["월"] = year_data["month"].dt.strftime("%m월")
-
-        col_a, col_b = st.columns([2, 1])
-        with col_a:
-            st.bar_chart(year_data.set_index("월")[["views"]].rename(columns={"views": "조회수"}),
-                         use_container_width=True, height=280)
-        with col_b:
-            table_y = year_data[["월", "views"]].copy()
-            table_y.columns = ["월", "조회수"]
-            table_y = table_y.sort_values("월", ascending=False).reset_index(drop=True)
-            st.dataframe(table_y, use_container_width=True, height=280)
+        # 월별 바 차트 (최근 6개월, 숫자 표시)
+        st.subheader("월별 조회수 추이 (최근 6개월)")
+        bar_m = alt.Chart(recent_6m).mark_bar().encode(
+            x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("views:Q", title="조회수"),
+            tooltip=["year_month", "views"]
+        )
+        text_m = alt.Chart(recent_6m).mark_text(dy=-8, fontSize=11).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("views:Q"),
+            text=alt.Text("views:Q", format=",")
+        )
+        st.altair_chart(bar_m + text_m, use_container_width=True)
 
         # 전체 데이터 다운로드
         with st.expander("월별 원본 데이터 보기"):
