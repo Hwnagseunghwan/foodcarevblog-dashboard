@@ -25,10 +25,10 @@ jobs:
 
       - name: 패키지 설치
         run: |
-          pip install playwright gspread pandas python-dotenv
+          pip install playwright gspread pandas python-dotenv requests
           playwright install chromium --with-deps
 
-      - name: 조회수 수집 실행
+      - name: 블로그 조회수 수집 실행
         env:
           NAVER_ID: ${{ secrets.NAVER_ID }}
           NAVER_PW: ${{ secrets.NAVER_PW }}
@@ -36,10 +36,15 @@ jobs:
           NAVER_COOKIES: ${{ secrets.NAVER_COOKIES }}
         run: python naver_scraper.py
 
+      - name: VOLA 클릭수 수집 실행
+        env:
+          VOLA_API_KEY: ${{ secrets.VOLA_API_KEY }}
+        run: python vola_scraper.py
+
       - name: 데이터 커밋 & 푸시
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add blog_visitors.json blog_visitors_monthly.json
-          git diff --staged --quiet || git commit -m "data: $(date +'%Y-%m-%d') 조회수 업데이트 (일별+월별)"
+          git add blog_visitors.json blog_visitors_monthly.json vola_clicks.json
+          git diff --staged --quiet || git commit -m "data: $(date +'%Y-%m-%d') 조회수 업데이트 (블로그+VOLA)"
           git push
