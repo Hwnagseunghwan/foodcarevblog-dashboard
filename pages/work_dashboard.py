@@ -58,7 +58,22 @@ else:
     st.caption(f"마지막 업데이트: {updated_at}  |  전체 {len(df)}건")
 
     # 전처리
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    # date: "12. 18" 형식 + year 컬럼으로 실제 날짜 생성
+    def parse_date(row):
+        try:
+            raw = str(row["date"]).replace(" ", "").replace(".", "-").strip("-")
+            year = int(row["year"]) if row["year"] else datetime.now().year
+            parts = raw.split("-")
+            if len(parts) == 2:
+                return pd.Timestamp(f"{year}-{int(parts[0]):02d}-{int(parts[1]):02d}")
+        except:
+            pass
+        return pd.NaT
+
+    df["parsed_date"] = df.apply(parse_date, axis=1)
+    df["year_month"] = df["parsed_date"].dt.strftime("%Y-%m")
+    df["week_label"] = df["parsed_date"].dt.strftime("%Y-W") + df["parsed_date"].dt.isocalendar().week.astype(str).str.zfill(2)
+
     df["검색량(M)"] = pd.to_numeric(df["검색량(M)"], errors="coerce").fillna(0)
     df["원고비용"] = pd.to_numeric(df["원고비용"], errors="coerce").fillna(0)
     df["작업비용"] = pd.to_numeric(df["작업비용"], errors="coerce").fillna(0)
@@ -66,7 +81,152 @@ else:
     df["총비용"] = df["원고비용"] + df["작업비용"] + df["송출비용"]
     df["노출여부"] = df["노출여부"].astype(str).str.strip()
 
-    tab1, tab2, tab3 = st.tabs(["📊 현황 요약", "🔍 원고 목록", "💰 비용 분석"])
+    # code 기준 중복 제거 → 원고 송출 단위
+    dedup_cols = ["code", "작성자", "브랜드명", "제품명", "소재명", "특이사항",
+                  "year", "parsed_date", "year_month", "week_label", "week", "month",
+                  "Blog_URL", "원고비용", "작업비용", "송출비용", "총비용", "보라링크1", "보라링크2", "보라링크3"]
+    dedup_cols = [c for c in dedup_cols if c in df.columns]
+    df_dedup = df.drop_duplicates(subset=["code"])[dedup_cols].copy()
+
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 현황 요약", "📨 원고 송출량", "🔍 원고 목록", "💰 비용 분석"])
+
+    # ── 탭2: 원고 송출량 ──────────────────────────────────────
+    with tab2:
+        total_sent = len(df_dedup)
+        df_sent = df_dedup.dropna(subset=["parsed_date"]).copy()
+
+        # 상단 요약 지표
+        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+        col_s1.metric("총 원고 송출량", f"{total_sent}건")
+        for i, writer in enumerate(sorted(df_dedup["작성자"].dropna().unique())):
+            cnt = len(df_dedup[df_dedup["작성자"] == writer])
+            [col_s2, col_s3, col_s4][i].metric(f"{writer}", f"{cnt}건")
+
+        st.divider()
+
+        # 필터: 작성자 / 브랜드명
+        col_f1, col_f2, col_f3 = st.columns(3)
+        f_writer = col_f1.selectbox("작성자 필터", ["전체"] + sorted(df_dedup["작성자"].dropna().unique().tolist()), key="sent_writer")
+        f_brand  = col_f2.selectbox("브랜드명 필터", ["전체"] + sorted(df_dedup["브랜드명"].dropna().unique().tolist()), key="sent_brand")
+        f_view   = col_f3.selectbox("단위", ["월별", "주간별", "일별"], key="sent_view")
+
+        df_f = df_sent.copy()
+        if f_writer != "전체":
+            df_f = df_f[df_f["작성자"] == f_writer]
+        if f_brand != "전체":
+            df_f = df_f[df_f["브랜드명"] == f_brand]
+
+        st.divider()
+
+        if f_view == "월별":
+            grp = df_f.groupby(["year_month", "작성자"]).size().reset_index(name="송출량")
+            grp_total = df_f.groupby("year_month").size().reset_index(name="송출량")
+            grp_total = grp_total.sort_values("year_month")
+
+            st.subheader("월별 원고 송출량")
+            bar = alt.Chart(grp.sort_values("year_month")).mark_bar().encode(
+                x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("송출량:Q", title="송출량"),
+                color=alt.Color("작성자:N", title="작성자"),
+                tooltip=["year_month", "작성자", "송출량"]
+            )
+            text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("year_month:N", sort=None),
+                y=alt.Y("송출량:Q"),
+                text=alt.Text("송출량:Q")
+            )
+            st.altair_chart(bar + text, use_container_width=True)
+
+            # 브랜드별
+            st.subheader("월별 브랜드별 송출량")
+            grp_brand = df_f.groupby(["year_month", "브랜드명"]).size().reset_index(name="송출량")
+            bar_b = alt.Chart(grp_brand.sort_values("year_month")).mark_bar().encode(
+                x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("송출량:Q", title="송출량"),
+                color=alt.Color("브랜드명:N", title="브랜드명"),
+                tooltip=["year_month", "브랜드명", "송출량"]
+            )
+            st.altair_chart(bar_b, use_container_width=True)
+
+        elif f_view == "주간별":
+            grp = df_f.groupby(["week_label", "작성자"]).size().reset_index(name="송출량")
+            grp_total = df_f.groupby("week_label").size().reset_index(name="송출량")
+            grp_total = grp_total.sort_values("week_label")
+
+            st.subheader("주간별 원고 송출량")
+            bar = alt.Chart(grp.sort_values("week_label")).mark_bar().encode(
+                x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("송출량:Q", title="송출량"),
+                color=alt.Color("작성자:N", title="작성자"),
+                tooltip=["week_label", "작성자", "송출량"]
+            )
+            text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("week_label:N", sort=None),
+                y=alt.Y("송출량:Q"),
+                text=alt.Text("송출량:Q")
+            )
+            st.altair_chart(bar + text, use_container_width=True)
+
+        else:  # 일별
+            grp = df_f.groupby([df_f["parsed_date"].dt.strftime("%Y-%m-%d"), "작성자"]).size().reset_index(name="송출량")
+            grp.columns = ["date", "작성자", "송출량"]
+            grp_total = df_f.groupby(df_f["parsed_date"].dt.strftime("%Y-%m-%d")).size().reset_index(name="송출량")
+            grp_total.columns = ["date", "송출량"]
+            grp_total = grp_total.sort_values("date")
+
+            st.subheader("일별 원고 송출량")
+            bar = alt.Chart(grp.sort_values("date")).mark_bar().encode(
+                x=alt.X("date:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y("송출량:Q", title="송출량"),
+                color=alt.Color("작성자:N", title="작성자"),
+                tooltip=["date", "작성자", "송출량"]
+            )
+            text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
+                x=alt.X("date:N", sort=None),
+                y=alt.Y("송출량:Q"),
+                text=alt.Text("송출량:Q")
+            )
+            st.altair_chart(bar + text, use_container_width=True)
+
+        st.divider()
+
+        # 제품명별 송출량
+        st.subheader("제품명별 송출량")
+        grp_prod = df_f.groupby(["제품명", "브랜드명"]).size().reset_index(name="송출량")
+        grp_prod = grp_prod.sort_values("송출량", ascending=False)
+        bar_p = alt.Chart(grp_prod).mark_bar().encode(
+            x=alt.X("송출량:Q", title="송출량"),
+            y=alt.Y("제품명:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
+            color=alt.Color("브랜드명:N", title="브랜드명"),
+            tooltip=["제품명", "브랜드명", "송출량"]
+        )
+        text_p = alt.Chart(grp_prod).mark_text(dx=5, fontSize=11, align="left").encode(
+            x=alt.X("송출량:Q"),
+            y=alt.Y("제품명:N", sort="-x"),
+            text=alt.Text("송출량:Q")
+        )
+        st.altair_chart(bar_p + text_p, use_container_width=True)
+
+        st.divider()
+
+        # 원고 송출 원본 테이블
+        with st.expander("원고 송출 원본 데이터 보기"):
+            show = df_f[["parsed_date", "작성자", "브랜드명", "제품명", "소재명", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]].copy()
+            show["parsed_date"] = show["parsed_date"].dt.strftime("%Y-%m-%d")
+            show = show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
+            st.dataframe(
+                show,
+                use_container_width=True,
+                height=400,
+                column_config={
+                    "Blog_URL": st.column_config.LinkColumn("Blog_URL", display_text="🔗 블로그"),
+                    "보라링크1": st.column_config.LinkColumn("보라링크1", display_text="🔗 링크1"),
+                    "보라링크2": st.column_config.LinkColumn("보라링크2", display_text="🔗 링크2"),
+                    "보라링크3": st.column_config.LinkColumn("보라링크3", display_text="🔗 링크3"),
+                }
+            )
+            csv = show.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button("CSV 다운로드", data=csv, file_name="work_sent.csv", mime="text/csv")
 
     # ── 탭1: 현황 요약 ──────────────────────────────────────
     with tab1:
@@ -136,8 +296,8 @@ else:
             )
             st.altair_chart(pie, use_container_width=True)
 
-    # ── 탭2: 원고 목록 ──────────────────────────────────────
-    with tab2:
+    # ── 탭3: 원고 목록 ──────────────────────────────────────
+    with tab3:
         # 필터
         col_f1, col_f2, col_f3, col_f4 = st.columns(4)
         f_type = col_f1.selectbox("원고유형", ["전체"] + sorted(df["원고유형"].dropna().unique().tolist()))
@@ -182,8 +342,8 @@ else:
         csv = filtered.to_csv(index=False, encoding="utf-8-sig")
         st.download_button("CSV 다운로드", data=csv, file_name="work_data.csv", mime="text/csv")
 
-    # ── 탭3: 비용 분석 ──────────────────────────────────────
-    with tab3:
+    # ── 탭4: 비용 분석 ──────────────────────────────────────
+    with tab4:
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
         col_c1.metric("총 원고비용", f"{df['원고비용'].sum():,.0f}원")
         col_c2.metric("총 작업비용", f"{df['작업비용'].sum():,.0f}원")
