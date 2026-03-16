@@ -48,6 +48,23 @@ if not daily_vola:
 else:
     all_dates = sorted(daily_vola.keys())
 
+    # longurl에서 의미있는 레이블 생성
+    def label_from_longurl(longurl, alias):
+        import re
+        if "/event/eventDetail/" in longurl:
+            m = re.search(r"/eventDetail/(\d+)", longurl)
+            return f"이벤트 #{m.group(1)}" if m else f"이벤트 ({alias})"
+        if "/shop/mealPlan/E/" in longurl:
+            m = re.search(r"/mealPlan/E/(\d+)", longurl)
+            return f"식단플랜(E) #{m.group(1)}" if m else f"식단플랜(E) ({alias})"
+        if "/shop/mealPlan/U/" in longurl:
+            m = re.search(r"/mealPlan/U/(\d+)", longurl)
+            return f"식단플랜(U) #{m.group(1)}" if m else f"식단플랜(U) ({alias})"
+        if "/shop/goodsView/" in longurl:
+            m = re.search(r"/goodsView/0*(\d+)", longurl)
+            return f"상품 #{m.group(1)}" if m else f"상품 ({alias})"
+        return alias
+
     # 링크 메타 정보 수집 (가장 최근 날짜 기준 우선)
     title_map = {}
     shorturl_map = {}
@@ -55,7 +72,11 @@ else:
     created_at_map = {}
     for d in all_dates:
         for alias, info in daily_vola[d].items():
-            title_map[alias] = info.get("title", alias) or alias
+            raw_title = info.get("title", "") or ""
+            # 깨진 문자 포함 시 빈 문자열 처리
+            if "\ufffd" in raw_title:
+                raw_title = ""
+            title_map[alias] = raw_title
             shorturl_map[alias] = info.get("shorturl", f"https://vo.la/{alias}")
             longurl_map[alias] = info.get("longurl", "")
             created_at_map[alias] = info.get("created_at", "")
@@ -77,6 +98,11 @@ else:
         if "/shop/goodsView/" in longurl:
             return "상품"
         return "기타"
+
+    # 타이틀이 없으면 longurl 기반 레이블 사용
+    for alias in list(title_map.keys()):
+        if not title_map[alias]:
+            title_map[alias] = label_from_longurl(longurl_map.get(alias, ""), alias)
 
     # 전체 데이터 → 롱 포맷
     rows = []

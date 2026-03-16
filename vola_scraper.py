@@ -68,21 +68,38 @@ def main():
     links = fetch_all_links()
     print(f"총 {len(links)}개 링크 수집")
 
+    # 기존 저장된 타이틀 캐시 (한 번이라도 저장된 의미있는 타이틀 보존)
+    existing = load_existing()
+    title_cache = {}
+    for snap in existing.get("snapshots", {}).values():
+        for alias, info in snap.items():
+            t = info.get("title", "")
+            if t and "\ufffd" not in t:  # 깨진 문자 없는 타이틀만 캐시
+                title_cache[alias] = t
+    for daily in existing.get("daily", {}).values():
+        for alias, info in daily.items():
+            if alias not in title_cache:
+                t = info.get("title", "")
+                if t and "\ufffd" not in t:
+                    title_cache[alias] = t
+
     # 오늘 스냅샷 (누적 클릭수)
     snapshot = {}
     for link in links:
         alias = link["alias"]
+        api_title = link.get("title") or ""
+        # 기존에 저장된 의미있는 타이틀 우선, 없으면 API 타이틀 사용
+        title = title_cache.get(alias) or (api_title if "\ufffd" not in api_title else "")
         snapshot[alias] = {
             "id": link["id"],
             "shorturl": link["shorturl"],
             "longurl": link["longurl"],
-            "title": link.get("title") or "",
+            "title": title,
             "total_clicks": link["clicks"],
             "created_at": link.get("date", "")[:10],
         }
 
-    # 기존 데이터 로드
-    existing = load_existing()
+    # 기존 데이터 로드 (타이틀 캐시에서 이미 로드됨)
 
     # 일별 클릭수 계산 (오늘 누적 - 어제 누적)
     daily_clicks = {}
