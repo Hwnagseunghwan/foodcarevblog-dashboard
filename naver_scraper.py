@@ -65,12 +65,8 @@ async def login(page, context):
         await save_cookies(context)
         return True
 
-    # 추가 인증 필요 시 수동 처리
-    print(f"추가 인증 필요 (현재: {page.url})")
-    print("브라우저에서 인증 완료 후 Enter 입력...")
-    input()
-    await save_cookies(context)
-    return True
+    print(f"로그인 실패 (현재: {page.url})")
+    raise Exception("네이버 로그인 실패 - Secrets의 NAVER_ID/NAVER_PW 확인 필요")
 
 
 async def fetch_stat_api(page, start_date: str) -> dict:
