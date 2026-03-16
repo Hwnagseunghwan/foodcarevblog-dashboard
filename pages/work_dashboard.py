@@ -118,12 +118,15 @@ else:
 
         st.divider()
 
-        if f_view == "월별":
-            grp = df_f.groupby(["year_month", "작성자"]).size().reset_index(name="송출량")
-            grp_total = df_f.groupby("year_month").size().reset_index(name="송출량")
-            grp_total = grp_total.sort_values("year_month")
+        max_date = df_f["parsed_date"].max()
 
-            st.subheader("월별 원고 송출량")
+        if f_view == "월별":
+            cutoff = max_date - pd.DateOffset(months=5)
+            df_view = df_f[df_f["parsed_date"] >= cutoff.replace(day=1)]
+            grp = df_view.groupby(["year_month", "작성자"]).size().reset_index(name="송출량")
+            grp_total = df_view.groupby("year_month").size().reset_index(name="송출량").sort_values("year_month")
+
+            st.subheader("월별 원고 송출량 (최근 6개월)")
             bar = alt.Chart(grp.sort_values("year_month")).mark_bar().encode(
                 x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
@@ -137,9 +140,8 @@ else:
             )
             st.altair_chart(bar + text, use_container_width=True)
 
-            # 브랜드별
-            st.subheader("월별 브랜드별 송출량")
-            grp_brand = df_f.groupby(["year_month", "브랜드명"]).size().reset_index(name="송출량")
+            st.subheader("월별 브랜드별 송출량 (최근 6개월)")
+            grp_brand = df_view.groupby(["year_month", "브랜드명"]).size().reset_index(name="송출량")
             bar_b = alt.Chart(grp_brand.sort_values("year_month")).mark_bar().encode(
                 x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
@@ -149,11 +151,12 @@ else:
             st.altair_chart(bar_b, use_container_width=True)
 
         elif f_view == "주간별":
-            grp = df_f.groupby(["week_label", "작성자"]).size().reset_index(name="송출량")
-            grp_total = df_f.groupby("week_label").size().reset_index(name="송출량")
-            grp_total = grp_total.sort_values("week_label")
+            cutoff = max_date - pd.Timedelta(days=89)
+            df_view = df_f[df_f["parsed_date"] >= cutoff]
+            grp = df_view.groupby(["week_label", "작성자"]).size().reset_index(name="송출량")
+            grp_total = df_view.groupby("week_label").size().reset_index(name="송출량").sort_values("week_label")
 
-            st.subheader("주간별 원고 송출량")
+            st.subheader("주간별 원고 송출량 (최근 90일)")
             bar = alt.Chart(grp.sort_values("week_label")).mark_bar().encode(
                 x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
@@ -168,13 +171,15 @@ else:
             st.altair_chart(bar + text, use_container_width=True)
 
         else:  # 일별
-            grp = df_f.groupby([df_f["parsed_date"].dt.strftime("%Y-%m-%d"), "작성자"]).size().reset_index(name="송출량")
+            cutoff = max_date - pd.Timedelta(days=13)
+            df_view = df_f[df_f["parsed_date"] >= cutoff]
+            grp = df_view.groupby([df_view["parsed_date"].dt.strftime("%Y-%m-%d"), "작성자"]).size().reset_index(name="송출량")
             grp.columns = ["date", "작성자", "송출량"]
-            grp_total = df_f.groupby(df_f["parsed_date"].dt.strftime("%Y-%m-%d")).size().reset_index(name="송출량")
+            grp_total = df_view.groupby(df_view["parsed_date"].dt.strftime("%Y-%m-%d")).size().reset_index(name="송출량")
             grp_total.columns = ["date", "송출량"]
             grp_total = grp_total.sort_values("date")
 
-            st.subheader("일별 원고 송출량")
+            st.subheader("일별 원고 송출량 (최근 14일)")
             bar = alt.Chart(grp.sort_values("date")).mark_bar().encode(
                 x=alt.X("date:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
