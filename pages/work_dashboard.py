@@ -275,16 +275,19 @@ else:
         EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"]
 
         total_kw = len(df_kw)
-        exposed_kw = len(df_kw[df_kw["노출여부"].isin(EXPOSED_VAL)])
-        exposure_rate_kw = exposed_kw / total_kw * 100 if total_kw > 0 else 0
         total_search = df_kw["검색량(M)"].sum()
+        df_exposed = df_kw[df_kw["노출여부"].isin(EXPOSED_VAL)]
+        exposed_kw = len(df_exposed)
+        exposed_search = df_exposed["검색량(M)"].sum()
+        exposure_rate_kw = exposed_kw / total_kw * 100 if total_kw > 0 else 0
 
         # 상단 지표
-        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
         col_k1.metric("총 키워드 수", f"{total_kw:,}개")
-        col_k2.metric("노출 키워드", f"{exposed_kw:,}개")
-        col_k3.metric("키워드 노출률", f"{exposure_rate_kw:.1f}%")
-        col_k4.metric("총 검색량(M) 합계", f"{total_search:,.0f}")
+        col_k2.metric("총 검색량(M) 합계", f"{total_search:,.0f}")
+        col_k3.metric("노출 키워드 수", f"{exposed_kw:,}개")
+        col_k4.metric("노출 검색량(M) 합계", f"{exposed_search:,.0f}")
+        col_k5.metric("키워드 노출률", f"{exposure_rate_kw:.1f}%")
 
         st.divider()
 
