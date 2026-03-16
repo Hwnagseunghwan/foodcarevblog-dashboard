@@ -24,6 +24,7 @@ st.set_page_config(
 from dotenv import load_dotenv
 load_dotenv()
 BLOG_ID = os.environ.get("BLOG_ID", "nature_food")
+st.markdown("<a id='cle-blog-dashboard'></a>", unsafe_allow_html=True)
 st.title(f"📊 Cle 공식블로그 조회수 대시보드({BLOG_ID})")
 st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
@@ -54,6 +55,9 @@ def load_monthly_data():
     return df
 
 
+
+
+
 tab2, tab1, tab3, tab4 = st.tabs(["📆 월별 추이 (6개월)", "📅 주간 현황 (최근 90일)", "📋 일간 현황 (최근 14일)", "💡 시사점"])
 
 # ── 탭1: 주간 현황 ──────────────────────────────────────
@@ -76,16 +80,24 @@ with tab1:
         weekly = df.groupby(["week_start", "week_label"], sort=True)["views"].sum().reset_index()
         weekly.columns = ["week_start", "week_label", "views"]
 
-        # 주간 조회수 합계 + 증감률 (최근 12주)
-        recent_13w = weekly.tail(13).reset_index(drop=True)  # 증감률 계산용 이전 주 포함
-        recent_12w = weekly.tail(12).reset_index(drop=True)
+        # 시작 주차 선택 반영 (선택 주차부터 12주)
+        _week_labels = weekly["week_label"].tolist()
+        _default_w = _week_labels[-12] if len(_week_labels) >= 12 else _week_labels[0]
+        start_wl = st.session_state.get("weekly_start", _default_w)
+        start_wi = weekly[weekly["week_label"] >= start_wl].index
+        if len(start_wi) == 0:
+            start_wi = weekly.index[-12:]
+        recent_12w = weekly.loc[start_wi[:12]].reset_index(drop=True)
+        # 증감률용 직전 1주 포함
+        prev_wi = start_wi[0] - 1
+        prev_week = weekly.loc[[prev_wi]] if prev_wi >= 0 else pd.DataFrame(columns=weekly.columns)
+        recent_13w = pd.concat([prev_week, recent_12w]).reset_index(drop=True)
 
-        st.subheader("주간 조회수 합계")
+        st.subheader(f"주간 조회수 합계 ({start_wl.split(' ')[0]} ~)")
         cols = st.columns(len(recent_12w))
         for i, row in recent_12w.iterrows():
-            idx = len(recent_13w) - 12 + i
-            prev_views = int(recent_13w.loc[idx - 1, "views"]) if idx > 0 else None
-            curr_views = int(row["views"])
+            prev_views = int(recent_13w.loc[i, "views"]) if len(recent_13w) > i else None
+            curr_views = int(recent_13w.loc[i + 1, "views"]) if len(recent_13w) > i + 1 else int(row["views"])
             if prev_views and prev_views > 0:
                 rate = (curr_views - prev_views) / prev_views * 100
                 delta = f"{rate:+.1f}%"
@@ -96,7 +108,7 @@ with tab1:
         st.divider()
 
         # 주간 조회수 추이 차트 (최근 12주, 숫자 표시)
-        st.subheader("주간 조회수 추이 (ISOWEEKNUM 기준)")
+        st.subheader(f"주간 조회수 추이 ({start_wl.split(' ')[0]} ~)")
         bar = alt.Chart(recent_12w).mark_bar().encode(
             x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
             y=alt.Y("views:Q", title="조회수"),
@@ -118,6 +130,26 @@ with tab1:
 
             csv = table_w.to_csv(index=False, encoding="utf-8-sig")
             st.download_button("CSV 다운로드", data=csv, file_name="blog_views_weekly.csv", mime="text/csv")
+
+        st.divider()
+
+        # ── 주간 현황 시작 주차 선택 (주간 데이터 보기 하단) ──────────────────────────────────────
+        _week_options = weekly["week_label"].tolist()
+        _default_week = _week_options[-12] if len(_week_options) >= 12 else _week_options[0]
+        with st.form("weekly_selector"):
+            col_w1, col_w2 = st.columns([2, 1])
+            selected_week_start = col_w1.selectbox(
+                "📅 주간 현황 시작 주차 선택",
+                options=_week_options,
+                index=_week_options.index(st.session_state.get("weekly_start", _default_week)),
+                help="선택한 주차부터 이후 12주를 위 차트에 표시합니다."
+            )
+            col_w2.markdown("<br>", unsafe_allow_html=True)
+            submitted_week = col_w2.form_submit_button("적용", use_container_width=True)
+        if "weekly_start" not in st.session_state or submitted_week:
+            st.session_state["weekly_start"] = selected_week_start
+            if submitted_week:
+                st.rerun()
 
 # ── 탭3: 일간 현황 ──────────────────────────────────────
 
@@ -157,18 +189,26 @@ with tab3:
     if df3.empty:
         st.warning("일별 데이터가 없습니다. naver_scraper.py를 먼저 실행해주세요.")
     else:
-        recent_14 = df3.tail(14).reset_index(drop=True)
-        recent_15 = df3.tail(15).reset_index(drop=True)
+        # 시작일 선택 반영 (선택일 포함 이후 14일)
+        daily_start_str = st.session_state.get("daily_start", df3["date"].dt.strftime("%Y-%m-%d").iloc[-14])
+        start_di = df3[df3["date"].dt.strftime("%Y-%m-%d") >= daily_start_str].index
+        if len(start_di) == 0:
+            start_di = df3.index[-14:]
+        recent_14 = df3.loc[start_di[:14]].reset_index(drop=True)
+        # 증감률용 직전 1일 포함
+        prev_di = start_di[0] - 1
+        prev_day = df3.loc[[prev_di]] if prev_di >= 0 else pd.DataFrame(columns=df3.columns)
+        recent_15 = pd.concat([prev_day, recent_14]).reset_index(drop=True)
+
         recent_14["day_type"] = recent_14["date"].apply(day_type)
         recent_14["date_label"] = recent_14["date"].apply(date_label)
 
-        # 일간 조회수 합계 + 증감률 (최근 14일)
-        st.subheader("일간 조회수")
+        # 일간 조회수 합계 + 증감률
+        st.subheader(f"일간 조회수 ({daily_start_str} ~)")
         cols = st.columns(len(recent_14))
         for i, row in recent_14.iterrows():
-            idx = len(recent_15) - 14 + i
-            prev_views = int(recent_15.loc[idx - 1, "views"]) if idx > 0 else None
-            curr_views = int(row["views"])
+            prev_views = int(recent_15.loc[i, "views"]) if len(recent_15) > i else None
+            curr_views = int(recent_15.loc[i + 1, "views"]) if len(recent_15) > i + 1 else int(row["views"])
             if prev_views and prev_views > 0:
                 rate = (curr_views - prev_views) / prev_views * 100
                 delta = f"{rate:+.1f}%"
@@ -181,7 +221,7 @@ with tab3:
         st.divider()
 
         # 일간 조회수 추이 차트 (숫자 표시 + 요일 색상)
-        st.subheader("일간 조회수 추이 (최근 14일)")
+        st.subheader(f"일간 조회수 추이 ({daily_start_str} ~)")
         color_map = {"weekday": "#4C78A8", "saturday": "#1f77b4", "sunday": "#d62728", "holiday": "#d62728"}
         recent_14["bar_color"] = recent_14["day_type"].map(color_map)
 
@@ -203,6 +243,38 @@ with tab3:
         )
         st.altair_chart(bar_d + text_d, use_container_width=True)
 
+        # 일별 원본 데이터 보기
+        with st.expander("일별 원본 데이터 보기"):
+            table_d = recent_14.copy()
+            table_d["date"] = table_d["date"].dt.strftime("%Y-%m-%d")
+            table_d = table_d[["date", "date_label", "views"]].copy()
+            table_d.columns = ["날짜", "날짜(요일)", "조회수"]
+            table_d = table_d.sort_values("날짜", ascending=False).reset_index(drop=True)
+            st.dataframe(table_d, use_container_width=True, height=300)
+
+            csv_d = table_d.to_csv(index=False, encoding="utf-8-sig")
+            st.download_button("CSV 다운로드", data=csv_d, file_name="blog_views_daily.csv", mime="text/csv")
+
+        st.divider()
+
+        # ── 일간 현황 시작일 선택 (차트 하단) ──────────────────────────────────────
+        _date_options = [d.strftime("%Y-%m-%d") for d in df3["date"].dt.date]
+        _default_daily = _date_options[-14] if len(_date_options) >= 14 else _date_options[0]
+        with st.form("daily_selector"):
+            col_d1, col_d2 = st.columns([2, 1])
+            selected_daily_start = col_d1.selectbox(
+                "📋 일간 현황 시작일 선택",
+                options=_date_options,
+                index=_date_options.index(st.session_state.get("daily_start", _default_daily)),
+                help="선택한 날부터 이후 14일을 위 차트에 표시합니다."
+            )
+            col_d2.markdown("<br>", unsafe_allow_html=True)
+            submitted_daily = col_d2.form_submit_button("적용", use_container_width=True)
+        if "daily_start" not in st.session_state or submitted_daily:
+            st.session_state["daily_start"] = selected_daily_start
+            if submitted_daily:
+                st.rerun()
+
 # ── 탭2: 월별 추이 ──────────────────────────────────────
 with tab2:
     mdf = load_monthly_data()
@@ -213,16 +285,24 @@ with tab2:
         mdf["year"] = mdf["month"].dt.year
         mdf["year_month"] = mdf["month"].dt.strftime("%Y-%m")
 
-        recent_6m = mdf.tail(6)
+        # 시작월 선택 반영 (선택월 포함 이후 6개월)
+        start_ym = st.session_state.get("monthly_start", mdf["year_month"].iloc[-6])
+        start_idx = mdf[mdf["year_month"] >= start_ym].index
+        if len(start_idx) == 0:
+            start_idx = mdf.index[-6:]
+        recent_6m = mdf.loc[start_idx[:6]]
 
-        # 월별 조회수 지표 (최근 6개월 + 전월 대비 증가율)
-        recent_7m = mdf.tail(7).reset_index(drop=True)  # 증가율 계산용 이전달 포함
-        st.subheader("월별 조회수 합계")
+        # 증감률 계산용: 시작월 직전 1개월 포함
+        prev_idx = start_idx[0] - 1
+        prev_row = mdf.loc[[prev_idx]] if prev_idx >= 0 else pd.DataFrame()
+        recent_7m = pd.concat([prev_row, recent_6m]).reset_index(drop=True)
+        recent_6m = recent_6m.reset_index(drop=True)
+
+        st.subheader(f"월별 조회수 합계 ({start_ym} ~)")
         cols = st.columns(len(recent_6m))
-        for i, (_, row) in enumerate(recent_6m.iterrows()):
-            idx = len(recent_7m) - 6 + i
-            prev_views = int(recent_7m.loc[idx - 1, "views"]) if idx > 0 else None
-            curr_views = int(row["views"])
+        for i, row in recent_6m.iterrows():
+            prev_views = int(recent_7m.loc[i, "views"]) if len(recent_7m) > i else None
+            curr_views = int(recent_7m.loc[i + 1, "views"]) if len(recent_7m) > i + 1 else int(row["views"])
             if prev_views and prev_views > 0:
                 rate = (curr_views - prev_views) / prev_views * 100
                 delta = f"{rate:+.1f}%"
@@ -232,8 +312,8 @@ with tab2:
 
         st.divider()
 
-        # 월별 바 차트 (최근 6개월, 숫자 표시)
-        st.subheader("월별 조회수 추이 (최근 6개월)")
+        # 월별 바 차트 (선택 시작월부터 6개월, 숫자 표시)
+        st.subheader(f"월별 조회수 추이 ({start_ym} ~)")
         bar_m = alt.Chart(recent_6m).mark_bar().encode(
             x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
             y=alt.Y("views:Q", title="조회수"),
@@ -255,6 +335,26 @@ with tab2:
 
             csv_m = all_monthly.to_csv(index=False, encoding="utf-8-sig")
             st.download_button("월별 CSV 다운로드", data=csv_m, file_name="blog_views_monthly.csv", mime="text/csv")
+
+        st.divider()
+
+        # ── 월별 추이 시작월 선택 (월별 원본 데이터 보기 하단) ──────────────────────────────────────
+        month_options = sorted(mdf["year_month"].tolist())
+        default_start = month_options[-6] if len(month_options) >= 6 else month_options[0]
+        with st.form("month_selector"):
+            col_m1, col_m2 = st.columns([2, 1])
+            selected_start = col_m1.selectbox(
+                "📆 월별 추이 시작월 선택",
+                options=month_options,
+                index=month_options.index(st.session_state.get("monthly_start", default_start)),
+                help="선택한 달부터 이후 6개월을 위 차트에 표시합니다."
+            )
+            col_m2.markdown("<br>", unsafe_allow_html=True)
+            submitted = col_m2.form_submit_button("적용", use_container_width=True)
+        if "monthly_start" not in st.session_state or submitted:
+            st.session_state["monthly_start"] = selected_start
+            if submitted:
+                st.rerun()
 
 # ── 탭4: 시사점 ──────────────────────────────────────
 with tab4:
@@ -381,6 +481,12 @@ with tab4:
         """)
 
 # ── 사이드바 ──────────────────────────────────────
+st.sidebar.markdown(
+    "<a href='#cle-blog-dashboard' style='display:block; text-align:center; "
+    "padding:8px; background:#4C78A8; color:white; border-radius:6px; "
+    "text-decoration:none; font-weight:bold;'>📊 Cle Blog Dashboard</a>",
+    unsafe_allow_html=True
+)
 st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()
