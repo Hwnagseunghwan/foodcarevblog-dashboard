@@ -251,7 +251,12 @@ else:
             color=alt.Color("category:N", title="카테고리"),
             tooltip=["title_label", "category", "clicks", "shorturl"]
         )
-        st.altair_chart(bar_l, use_container_width=True)
+        text_l = alt.Chart(link_filtered.head(20)).mark_text(dx=5, fontSize=11, align="left").encode(
+            x=alt.X("clicks:Q"),
+            y=alt.Y("title_label:N", sort="-x"),
+            text=alt.Text("clicks:Q", format=",")
+        )
+        st.altair_chart(bar_l + text_l, use_container_width=True)
 
         st.divider()
 
