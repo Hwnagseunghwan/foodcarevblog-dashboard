@@ -1,99 +1,140 @@
-# Cle 공식블로그 조회수 대시보드 프로젝트
+# foodcarevblog-dashboard 프로젝트
 
-## 프로젝트 개요
-- **목적**: 네이버 블로그(nature_food) 조회수를 자동 수집하여 Streamlit 대시보드로 시각화
-- **GitHub 레포**: https://github.com/Hwnagseunghwan/foodcarevblog-dashboard
+## 개요
+- **목적**: Cle 공식블로그(네이버 nature_food) 조회수 + VOLA 단축URL 클릭수 + Google Sheets 업무데이터 수집 → Streamlit 멀티페이지 대시보드
+- **GitHub**: https://github.com/Hwnagseunghwan/foodcarevblog-dashboard
 - **로컬 경로**: `C:/foodcarevblog-dashboard/`
-- **대시보드 실행**: `streamlit run dashboard.py` 또는 `대시보드실행.bat`
+- **실행**: `streamlit run dashboard.py` 또는 `대시보드실행.bat`
+
+---
+
+## 멀티페이지 구성
+
+| 파일 | 사이드바 명칭 | 설명 |
+|---|---|---|
+| `dashboard.py` | 📊 Cle Blog Dashboard | 네이버 블로그 조회수 (월별/주간/일간/시사점) |
+| `pages/vola_dashboard.py` | 🔗 Vola Dashboard | VOLA 단축URL 클릭수 |
+| `pages/work_dashboard.py` | 📋 Work Dashboard | Google Sheets 업무 데이터 |
+
+사이드바: 자동 생성 nav CSS로 숨기고 `st.sidebar.page_link`로 커스텀 구성
 
 ---
 
 ## 주요 파일
 
 | 파일 | 역할 |
-|------|------|
-| `dashboard.py` | Streamlit 대시보드 메인 (탭 4개) |
-| `naver_scraper.py` | 매일 23:00 KST 일별 조회수 자동 수집 |
-| `collect_history.py` | 과거 3년치 일별/월별 데이터 일괄 수집 |
-| `blog_visitors.json` | 일별 조회수 데이터 (최근 90일+) |
-| `blog_visitors_monthly.json` | 월별 조회수 데이터 (2022-12~) |
-| `naver_cookies.json` | 네이버 로그인 쿠키 (로컬용) |
-| `.github/workflows/scraper.yml` | GitHub Actions 자동 수집 워크플로우 |
+|---|---|
+| `naver_scraper.py` | 블로그 일별 조회수 수집 (Playwright) |
+| `vola_scraper.py` | VOLA 누적 클릭수 스냅샷 수집 → 전일 차분으로 일별 계산 |
+| `sheets_scraper.py` | Google Sheets 공식블_업무시트 수집 |
+| `blog_visitors.json` | 블로그 일별 조회수 |
+| `blog_visitors_monthly.json` | 블로그 월별 조회수 |
+| `vola_clicks.json` | VOLA 클릭수 (snapshots + daily 구조) |
+| `work_data.json` | Google Sheets 업무 데이터 |
+| `vola_title.xlsx` | VOLA 링크 타이틀 수동 관리 파일 (API 타이틀 깨짐 이슈) |
 
 ---
 
-## 대시보드 탭 구성
+## 자동 수집 (GitHub Actions - 매일 UTC 14:00 = KST 23:00)
 
-### 탭1 - 📆 월별 추이 (6개월)
-- 최근 6개월 조회수 카드 (전월 대비 증감률 포함)
-- Altair 바 차트 (조회수 숫자 표시)
-- 월별 원본 데이터 / CSV 다운로드
+```yaml
+# .github/workflows/scraper.yml 수집 순서
+1. naver_scraper.py   (NAVER_ID, NAVER_PW, BLOG_ID, NAVER_COOKIES)
+2. vola_scraper.py    (VOLA_API_KEY)
+3. sheets_scraper.py  (GOOGLE_CREDENTIALS)
+```
 
-### 탭2 - 📅 주간 현황 (최근 90일)
-- ISO 주차 기준 (엑셀 ISOWEEKNUM 동일, 월요일 시작)
-- 최근 12주 조회수 카드 (전주 대비 증감률 포함)
-- Altair 바 차트 (조회수 숫자 표시)
-- 주간 데이터 테이블 / CSV 다운로드
-
-### 탭3 - 📋 일간 현황 (최근 14일)
-- 최근 14일 조회수 카드 (전일 대비 증감률 포함)
-- 요일 표시: 토요일 🔵 파란색, 일요일/공휴일 🔴 빨간색
-- Altair 바 차트 (요일별 색상 + 조회수 숫자 표시)
-- 한국 공휴일 2025~2026 하드코딩 적용
-
-### 탭4 - 💡 시사점
-- **현재 진행 중인 월/주/일 제외, 완료된 기간만 분석**
-- 순서: 종합 의견(날짜 포함) → 월별 동향 → 주간 동향 → 일간 동향
-- 데이터 업데이트 시 자동 재계산
-
----
-
-## 자동 수집 구조
-
-### GitHub Actions (`scraper.yml`)
-- **스케줄**: 매일 UTC 14:00 (KST 23:00)
-- **인증**: `NAVER_COOKIES` Secret (로컬에서 추출한 쿠키 JSON)
-- **수집 방식**: Playwright로 `blog.stat.naver.com/api/blog/daily/cv` API 호출
-- **저장**: `blog_visitors.json` 커밋 & 푸시 (github-actions[bot])
-
-### GitHub Secrets 등록 항목
+### GitHub Secrets
 - `NAVER_ID`, `NAVER_PW`, `BLOG_ID`, `NAVER_COOKIES`
+- `VOLA_API_KEY`: db61b33a1da4e7738ddc3064f2a4bb4d
+- `GOOGLE_CREDENTIALS`: 서비스 계정 JSON (base64 아님, JSON 그대로)
 
 ---
 
-## 환경 변수 (.env)
+## Cle Blog Dashboard (dashboard.py)
+
+### 탭 구성
+1. 📆 월별 추이 (최근 6개월)
+2. 📅 주간 현황 (최근 90일, ISO 주차 기준)
+3. 📋 일간 현황 (최근 14일, 토🔵 일/공휴🔴)
+4. 💡 시사점 (완료된 기간만 분석, 종합→월별→주간→일간)
+
+---
+
+## VOLA Dashboard (pages/vola_dashboard.py)
+
+### 탭 구성
+1. 🔗 링크별 현황 (기간 선택, 카테고리 필터, 바 차트 + 숫자)
+2. 📋 일별 현황 (최근 14일, 일별 총 클릭 + 카테고리 스택)
+3. 📊 전체 데이터
+
+### 카테고리 분류 (longurl 기반)
+- `/event/eventDetail/` → 이벤트
+- `/shop/mealPlan/E/` → 식단플랜(E)
+- `/shop/mealPlan/U/` → 식단플랜(U)
+- `/shop/goodsView/` → 상품
+- 그 외 → 기타
+
+### VOLA 타이틀 이슈
+- API가 모든 링크에 사이트 기본 타이틀(깨진 문자)을 반환함
+- `vola_title.xlsx`로 수동 관리 (링크, 타이틀 컬럼)
+- `vola_scraper.py`: 기존 저장 타이틀 우선, 깨진 API 타이틀로 덮어쓰지 않음
+- 대시보드: 타이틀 없으면 longurl 기반 레이블 자동 생성 (예: 이벤트 #654)
+
+---
+
+## Work Dashboard (pages/work_dashboard.py)
+
+### 탭 구성
+```python
+tab1, tab2, tab5, tab3, tab4 = st.tabs(["📊 현황 요약", "📨 원고 송출량", "🔑 키워드 노출량", "🔍 원고 목록", "💰 비용 분석"])
 ```
-NAVER_ID=nature_food
-NAVER_PW=Foodcare!@#
-BLOG_ID=nature_food
+
+### 핵심 전처리
+```python
+# date: "12. 18" 형식 + year 컬럼 → parsed_date
+def parse_date(row):
+    raw = str(row["date"]).replace(" ", "").replace(".", "-").strip("-")
+    year = int(row["year"]) if row["year"] else datetime.now().year
+    parts = raw.split("-")
+    if len(parts) == 2:
+        return pd.Timestamp(f"{year}-{int(parts[0]):02d}-{int(parts[1]):02d}")
+    return pd.NaT
+
+# code 기준 중복제거 = 원고 송출 단위
+df_dedup = df.drop_duplicates(subset=["code"])[dedup_cols].copy()
+
+# 노출 판단값
+EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"]
+
+# 키워드 노출량 탭: code가 "#VALUE!" 또는 빈값인 행 제외
+_code_str = df_kw["code"].astype(str).str.strip()
+df_kw = df_kw[~_code_str.isin(["", "nan", "None", "코드없음", "#VALUE!"])]
 ```
 
+### 필터 위치
+- 원고 송출량 탭: 필터(작성자/브랜드/단위) 최상단 → 이후 지표/차트 반영
+- 키워드 노출량 탭: 필터(브랜드/제품/노출여부/단위) 최상단 → 이후 지표/차트 반영
+
+### 키워드 노출량 탭 상단 지표 (필터 적용 후)
+총 키워드 수 | 총 검색량(M) 합계 | 노출 키워드 수 | 노출 검색량(M) 합계 | 키워드 노출률
+
+### 키워드 노출량 차트 방식
+- 막대(브랜드별 스택): 전체 키워드수 / 전체 검색량(M)
+- 주황색 라인 오버레이: 노출 키워드수 / 노출 검색량(M)
+- 월별(6개월) / 주간별(90일) / 일별(14일)
+
 ---
 
-## 수집 데이터 현황 (2026-03-16 기준)
-- 일별: 91일치 (2025-12-16 ~ 2026-03-16)
-- 월별: 38개월치 (2022-12 ~ 2026-02)
-- 연도별: 2023년 / 2024년(300,134) / 2025년(203,961) / 2026년(38,175)
-
----
-
-## 앞으로 추가 예정 작업
-
-### Google Sheets 연동 대시보드
-- Google Sheets에 쌓인 데이터를 `gspread`로 불러와 추가 탭 또는 별도 섹션 구성
-- `gspread` + `google-auth` 패키지 사용
-- Google Service Account 키를 GitHub Secret으로 등록 예정
-- 연동할 시트 정보: (추후 사용자에게 확인 필요)
-
-### 기타 개선 예정
-- 공휴일 데이터를 `holidays` 패키지로 동적 처리 (현재 하드코딩)
-- 스크래퍼 쿠키 만료 시 자동 갱신 방안
+## Google Sheets 연동
+- SPREADSHEET_ID: `1fyqDmq8lZG9GyaoSco7rFGCTxXnITTCVb-KQ-XBFKww`
+- SHEET_NAME: `공식블_업무시트`
+- 인증: `GOOGLE_CREDENTIALS` 환경변수 또는 `google_credentials.json` 파일
 
 ---
 
 ## 기술 스택
-- Python 3.11
-- Streamlit, Pandas, Altair
-- Playwright (브라우저 자동화)
-- GitHub Actions (CI/CD 스케줄러)
-- gspread (Google Sheets 예정)
+- Python 3.11, Streamlit, Pandas, Altair
+- Playwright (네이버 스크래핑), requests (VOLA API)
+- gspread + google-auth (Google Sheets)
+- GitHub Actions (스케줄러)
