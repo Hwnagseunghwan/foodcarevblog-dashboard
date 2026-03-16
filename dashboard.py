@@ -120,6 +120,37 @@ with tab1:
             st.download_button("CSV 다운로드", data=csv, file_name="blog_views_weekly.csv", mime="text/csv")
 
 # ── 탭3: 일간 현황 ──────────────────────────────────────
+
+# 한국 공휴일 (2025~2026)
+KR_HOLIDAYS = {
+    "2025-01-01", "2025-01-28", "2025-01-29", "2025-01-30",
+    "2025-03-01", "2025-05-05", "2025-05-06", "2025-06-06",
+    "2025-08-15", "2025-10-03", "2025-10-05", "2025-10-06", "2025-10-07",
+    "2025-10-09", "2025-12-25",
+    "2026-01-01", "2026-02-17", "2026-02-18", "2026-02-19",
+    "2026-03-01", "2026-05-05", "2026-05-24", "2026-06-06",
+    "2026-08-15", "2026-09-24", "2026-09-25", "2026-09-26",
+    "2026-10-03", "2026-10-09", "2026-12-25",
+}
+DAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
+
+def day_type(d):
+    ds = d.strftime("%Y-%m-%d")
+    if ds in KR_HOLIDAYS:
+        return "holiday"
+    if d.weekday() == 5:
+        return "saturday"
+    if d.weekday() == 6:
+        return "sunday"
+    return "weekday"
+
+def date_label(d):
+    dow = DAY_KO[d.weekday()]
+    ds = d.strftime("%Y-%m-%d")
+    if ds in KR_HOLIDAYS:
+        return f"{d.strftime('%m/%d')}(공휴)"
+    return f"{d.strftime('%m/%d')}({dow})"
+
 with tab3:
     df3 = load_daily_data()
 
@@ -128,6 +159,8 @@ with tab3:
     else:
         recent_14 = df3.tail(14).reset_index(drop=True)
         recent_15 = df3.tail(15).reset_index(drop=True)
+        recent_14["day_type"] = recent_14["date"].apply(day_type)
+        recent_14["date_label"] = recent_14["date"].apply(date_label)
 
         # 일간 조회수 합계 + 증감률 (최근 14일)
         st.subheader("일간 조회수")
@@ -141,17 +174,27 @@ with tab3:
                 delta = f"{rate:+.1f}%"
             else:
                 delta = None
-            cols[i].metric(row["date"].strftime("%m/%d"), f"{curr_views:,}", delta)
+            dt = row["day_type"]
+            prefix = "🔵 " if dt == "saturday" else "🔴 " if dt in ("sunday", "holiday") else ""
+            cols[i].metric(f"{prefix}{row['date_label']}", f"{curr_views:,}", delta)
 
         st.divider()
 
-        # 일간 조회수 추이 차트 (숫자 표시)
+        # 일간 조회수 추이 차트 (숫자 표시 + 요일 색상)
         st.subheader("일간 조회수 추이 (최근 14일)")
-        recent_14["date_label"] = recent_14["date"].dt.strftime("%m/%d")
+        color_map = {"weekday": "#4C78A8", "saturday": "#1f77b4", "sunday": "#d62728", "holiday": "#d62728"}
+        recent_14["bar_color"] = recent_14["day_type"].map(color_map)
+
         bar_d = alt.Chart(recent_14).mark_bar().encode(
             x=alt.X("date_label:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
             y=alt.Y("views:Q", title="조회수"),
-            tooltip=["date_label", "views"]
+            color=alt.Color("day_type:N", scale=alt.Scale(
+                domain=["weekday", "saturday", "sunday", "holiday"],
+                range=["#4C78A8", "#5B9BD5", "#d62728", "#d62728"]
+            ), legend=alt.Legend(title="구분", labelExpr=(
+                "datum.value === 'weekday' ? '평일' : datum.value === 'saturday' ? '토요일' : '일요일/공휴일'"
+            ))),
+            tooltip=["date_label", "views", "day_type"]
         )
         text_d = alt.Chart(recent_14).mark_text(dy=-8, fontSize=11).encode(
             x=alt.X("date_label:N", sort=None),
