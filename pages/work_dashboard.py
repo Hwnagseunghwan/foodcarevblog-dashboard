@@ -272,7 +272,7 @@ else:
         # 키워드 기준 전체 데이터 (중복 제거 없음)
         df_kw = df.dropna(subset=["parsed_date"]).copy()
         df_kw["노출여부"] = df_kw["노출여부"].astype(str).str.strip()
-        EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE"]
+        EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"]
 
         total_kw = len(df_kw)
         exposed_kw = len(df_kw[df_kw["노출여부"].isin(EXPOSED_VAL)])
@@ -481,7 +481,7 @@ else:
     with tab1:
         col1, col2, col3, col4 = st.columns(4)
         total = len(df)
-        exposed = len(df[df["노출여부"].isin(["O", "o", "Y", "y", "노출", "True", "TRUE"])])
+        exposed = len(df[df["노출여부"].isin(["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"])])
         not_exposed = len(df[df["노출여부"].isin(["X", "x", "N", "n", "미노출", "False", "FALSE"])])
         exposure_rate = exposed / total * 100 if total > 0 else 0
 
@@ -560,7 +560,7 @@ else:
         if f_ms != "전체":
             filtered = filtered[filtered["메인/서브"] == f_ms]
         if f_exposed == "노출":
-            filtered = filtered[filtered["노출여부"].isin(["O", "o", "Y", "y", "노출", "True", "TRUE"])]
+            filtered = filtered[filtered["노출여부"].isin(["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"])]
         elif f_exposed == "미노출":
             filtered = filtered[filtered["노출여부"].isin(["X", "x", "N", "n", "미노출", "False", "FALSE"])]
         if f_keyword:
