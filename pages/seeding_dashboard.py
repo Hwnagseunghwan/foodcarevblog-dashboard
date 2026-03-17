@@ -243,13 +243,13 @@ with tab_sent:
     grp_prod = grp_prod.sort_values("송출량", ascending=False)
     bar_p = alt.Chart(grp_prod).mark_bar().encode(
         x=alt.X("송출량:Q", title="송출량"),
-        y=alt.Y("제품:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
+        y=alt.Y("제품명:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
         color=alt.Color("브랜드명:N", title="브랜드명"),
         tooltip=["제품명", "브랜드명", "송출량"]
     )
     text_p = alt.Chart(grp_prod).mark_text(dx=5, fontSize=11, align="left").encode(
         x=alt.X("송출량:Q"),
-        y=alt.Y("제품:N", sort="-x"),
+        y=alt.Y("제품명:N", sort="-x"),
         text=alt.Text("송출량:Q")
     )
     st.altair_chart(bar_p + text_p, use_container_width=True)
