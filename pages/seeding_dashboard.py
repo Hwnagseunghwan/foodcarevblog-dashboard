@@ -29,6 +29,7 @@ st.markdown("""
 <style>[data-testid="stSidebarNav"] { display: none; }</style>
 """, unsafe_allow_html=True)
 st.sidebar.markdown('<p style="font-size:28px; font-weight:900; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:-0.5px; margin:0;">Cle Dashboard</p>', unsafe_allow_html=True)
+st.sidebar.page_link("pages/overview_dashboard.py", label="📈 통합 성과 대시보드")
 st.sidebar.divider()
 st.sidebar.markdown('<p style="font-size:16px; color:#ccc; font-weight:700; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:0.5px; margin:0 0 12px 0;">— Cle Blog Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Views")
