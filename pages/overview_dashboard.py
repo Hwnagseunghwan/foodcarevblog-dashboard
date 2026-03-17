@@ -307,18 +307,16 @@ st.divider()
 total_views = int(df_filtered["blog_views"].sum())
 total_vola = int(df_filtered["총_vola_클릭"].sum())
 total_articles = int(df_filtered["원고수"].sum())
-total_cost = df_filtered["총비용"].sum()
 total_exposure = int(df_filtered["노출수"].sum())
 total_search_vol = int(df_filtered["노출_검색량"].sum())
 
 st.subheader(f"누적 성과  `{period_label}`")
-c1, c2, c3, c4, c5, c6 = st.columns(6)
+c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("📖 블로그 총 조회수", f"{total_views:,}")
 c2.metric("🔗 총 Vola 클릭수", f"{total_vola:,}")
 c3.metric("📝 총 원고 발행수", f"{total_articles:,}건")
 c4.metric("🔍 노출 키워드 수", f"{total_exposure:,}건")
 c5.metric("🔎 노출 키워드 검색량", f"{total_search_vol:,}")
-c6.metric("💰 총 마케팅 비용", f"{total_cost:,.0f}원")
 
 st.divider()
 
@@ -328,11 +326,10 @@ df_tab = df_filtered.copy()  # 탭도 동일 기간 적용
 
 
 def render_tab(df_grp, x_col, x_title):
-    # KPI 비교 (최근 2개 기간)
+    # KPI 카드 (최근 2개 기간 비교)
     if len(df_grp) >= 2:
         last = df_grp.iloc[-1]
         prev = df_grp.iloc[-2]
-        cols = st.columns(4)
 
         def delta_str(cur, pre):
             if pre > 0:
@@ -340,153 +337,102 @@ def render_tab(df_grp, x_col, x_title):
                 return f"{r:+.1f}%"
             return None
 
+        cols = st.columns(5)
         cols[0].metric("📖 블로그 조회수", f"{int(last['blog_views']):,}",
                        delta_str(last["blog_views"], prev["blog_views"]))
         cols[1].metric("🔗 Vola 클릭수", f"{int(last['총_vola_클릭']):,}",
                        delta_str(last["총_vola_클릭"], prev["총_vola_클릭"]))
         cols[2].metric("📝 원고 발행", f"{int(last['원고수']):,}건",
                        delta_str(last["원고수"], prev["원고수"]))
-        cols[3].metric("💰 마케팅 비용", f"{last['총비용']:,.0f}원",
-                       delta_str(last["총비용"], prev["총비용"]))
+        cols[3].metric("🔍 노출 키워드", f"{int(last['노출수']):,}건",
+                       delta_str(last["노출수"], prev["노출수"]))
+        cols[4].metric("🔎 노출 검색량", f"{int(last['노출_검색량']):,}",
+                       delta_str(last["노출_검색량"], prev["노출_검색량"]))
         st.divider()
 
-    # 조회수 + Vola 클릭 듀얼 차트
-    st.subheader(f"블로그 조회수 & Vola 클릭 추이")
-    melted = df_grp[[x_col, "blog_views", "총_vola_클릭"]].melt(
-        id_vars=[x_col],
-        value_vars=["blog_views", "총_vola_클릭"],
-        var_name="지표",
-        value_name="수치"
-    )
-    melted["지표"] = melted["지표"].map({"blog_views": "블로그 조회수", "총_vola_클릭": "Vola 클릭수"})
-
-    chart = alt.Chart(melted).mark_line(point=True).encode(
-        x=alt.X(f"{x_col}:N", sort=None, title=x_title, axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y("수치:Q", title="수치"),
-        color=alt.Color("지표:N", scale=alt.Scale(
-            domain=["블로그 조회수", "Vola 클릭수"],
-            range=["#4C78A8", "#F58518"]
-        )),
-        tooltip=[x_col, "지표", "수치"]
-    ).properties(height=280)
-    st.altair_chart(chart, use_container_width=True)
-
-    # 원고 발행 + 비용 바 차트
-    st.subheader("원고 발행 건수 & 마케팅 비용")
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-        # 블로그 vs 시딩 원고 비교
-        if not df_all_work.empty:
-            if x_col == "year_month":
-                work_src = df_all_work.copy()
-                work_src["period"] = work_src["parsed_date"].dt.strftime("%Y-%m")
-            elif x_col == "week_label":
-                iso = df_all_work["parsed_date"].dt.isocalendar()
-                work_src = df_all_work.copy()
-                work_src["period"] = (
-                    work_src["parsed_date"].dt.strftime("%Y-W")
-                    + iso.week.astype(str).str.zfill(2)
-                )
-            else:
-                work_src = df_all_work.copy()
-                work_src["period"] = work_src["parsed_date"].dt.strftime("%Y-%m-%d")
-
-            periods = df_grp[x_col].tolist()
-            work_src = work_src[work_src["period"].isin(periods)]
-            src_grp = work_src.groupby(["period", "source"]).size().reset_index(name="원고수")
-            src_grp.columns = ["period", "출처", "원고수"]
-
-            bar_src = alt.Chart(src_grp).mark_bar().encode(
-                x=alt.X("period:N", sort=None, title=x_title, axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y("원고수:Q", title="원고수"),
-                color=alt.Color("출처:N", scale=alt.Scale(
-                    domain=["블로그", "시딩"],
-                    range=["#4C78A8", "#54A24B"]
-                )),
-                tooltip=["period", "출처", "원고수"]
-            ).properties(height=220)
-            st.altair_chart(bar_src, use_container_width=True)
+    # 원고 발행 건수 (블로그 vs 시딩)
+    st.subheader("원고 발행 건수")
+    if not df_all_work.empty:
+        if x_col == "year_month":
+            work_src = df_all_work.copy()
+            work_src["period"] = work_src["parsed_date"].dt.strftime("%Y-%m")
+        elif x_col == "week_label":
+            iso = df_all_work["parsed_date"].dt.isocalendar()
+            work_src = df_all_work.copy()
+            work_src["period"] = (
+                work_src["parsed_date"].dt.strftime("%Y-W")
+                + iso.week.astype(str).str.zfill(2)
+            )
         else:
-            st.info("원고 데이터 없음")
+            work_src = df_all_work.copy()
+            work_src["period"] = work_src["parsed_date"].dt.strftime("%Y-%m-%d")
 
-    with col_b:
-        cost_chart = alt.Chart(df_grp).mark_bar(color="#E45756").encode(
-            x=alt.X(f"{x_col}:N", sort=None, title=x_title, axis=alt.Axis(labelAngle=-45)),
-            y=alt.Y("총비용:Q", title="비용(원)"),
-            tooltip=[x_col, alt.Tooltip("총비용:Q", format=",.0f")]
-        ).properties(height=220)
-        st.altair_chart(cost_chart, use_container_width=True)
+        periods = df_grp[x_col].tolist()
+        work_src = work_src[work_src["period"].isin(periods)]
+        src_grp = work_src.groupby(["period", "source"]).size().reset_index(name="원고수")
+        src_grp.columns = ["period", "출처", "원고수"]
 
-    # 퍼널 지표
-    st.divider()
-    st.subheader("마케팅 퍼널 효율")
-    total_v = df_grp["blog_views"].sum()
-    total_c = df_grp["총_vola_클릭"].sum()
-    total_co = df_grp["총비용"].sum()
-    total_art = df_grp["원고수"].sum()
-
-    fc1, fc2, fc3, fc4 = st.columns(4)
-    fc1.metric("조회수 → 클릭 전환율", f"{(total_c/total_v*100):.2f}%" if total_v > 0 else "-",
-               help="Vola 클릭수 / 블로그 조회수")
-    fc2.metric("원고 1건당 조회수", f"{(total_v/total_art):.0f}" if total_art > 0 else "-",
-               help="블로그 조회수 / 원고 발행수")
-    fc3.metric("클릭당 비용", f"{(total_co/total_c):.0f}원" if total_c > 0 else "-",
-               help="총 마케팅 비용 / Vola 클릭수")
-    fc4.metric("원고 1건당 비용", f"{(total_co/total_art):.0f}원" if total_art > 0 else "-",
-               help="총 마케팅 비용 / 원고 발행수")
+        bar_src = alt.Chart(src_grp).mark_bar().encode(
+            x=alt.X("period:N", sort=None, title=x_title, axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("원고수:Q", title="원고수"),
+            color=alt.Color("출처:N", scale=alt.Scale(
+                domain=["블로그", "시딩"],
+                range=["#4C78A8", "#54A24B"]
+            )),
+            tooltip=["period", "출처", "원고수"]
+        ).properties(height=260)
+        st.altair_chart(bar_src, use_container_width=True)
+    else:
+        st.info("원고 데이터 없음")
 
 
-# ── 탭1: 월별 ────────────────────────────────────────────────────
-with tab1:
-    grp_m = df_tab.groupby("year_month").agg(
+def agg_cols(df, by):
+    return df.groupby(by).agg(
         blog_views=("blog_views", "sum"),
         총_vola_클릭=("총_vola_클릭", "sum"),
         원고수=("원고수", "sum"),
-        총비용=("총비용", "sum"),
         노출수=("노출수", "sum"),
         노출_검색량=("노출_검색량", "sum"),
     ).reset_index()
-    render_tab(grp_m, "year_month", "월")
 
+
+# ── 탭1: 월별 (최근 6개월) ────────────────────────────────────────
+with tab1:
+    max_d = df_daily["date"].max()
+    cutoff_m = (max_d - pd.DateOffset(months=5)).replace(day=1)
+    df_m = df_daily[df_daily["date"] >= cutoff_m]
+    grp_m = agg_cols(df_m, "year_month")
+    st.caption(f"최근 6개월 기준 ({cutoff_m.strftime('%Y.%m')} ~ {max_d.strftime('%Y.%m')})")
+    render_tab(grp_m, "year_month", "월")
     with st.expander("월별 상세 데이터"):
         st.dataframe(grp_m.sort_values("year_month", ascending=False).reset_index(drop=True),
                      use_container_width=True)
         st.download_button("CSV 다운로드", grp_m.to_csv(index=False, encoding="utf-8-sig"),
                            "overview_monthly.csv", "text/csv")
 
-# ── 탭2: 주별 ────────────────────────────────────────────────────
+# ── 탭2: 주별 (최근 90일) ─────────────────────────────────────────
 with tab2:
-    grp_w = df_tab.groupby("week_label").agg(
-        blog_views=("blog_views", "sum"),
-        총_vola_클릭=("총_vola_클릭", "sum"),
-        원고수=("원고수", "sum"),
-        총비용=("총비용", "sum"),
-        노출수=("노출수", "sum"),
-        노출_검색량=("노출_검색량", "sum"),
-    ).reset_index()
+    max_d = df_daily["date"].max()
+    cutoff_w = max_d - pd.Timedelta(days=89)
+    df_w = df_daily[df_daily["date"] >= cutoff_w]
+    grp_w = agg_cols(df_w, "week_label")
+    st.caption(f"최근 90일 기준 ({cutoff_w.strftime('%Y.%m.%d')} ~ {max_d.strftime('%Y.%m.%d')})")
     render_tab(grp_w, "week_label", "주차")
-
     with st.expander("주별 상세 데이터"):
         st.dataframe(grp_w.sort_values("week_label", ascending=False).reset_index(drop=True),
                      use_container_width=True)
         st.download_button("CSV 다운로드", grp_w.to_csv(index=False, encoding="utf-8-sig"),
                            "overview_weekly.csv", "text/csv")
 
-# ── 탭3: 일별 ────────────────────────────────────────────────────
+# ── 탭3: 일별 (최근 14일) ─────────────────────────────────────────
 with tab3:
-    df_d = df_tab.copy()
+    max_d = df_daily["date"].max()
+    cutoff_d = max_d - pd.Timedelta(days=13)
+    df_d = df_daily[df_daily["date"] >= cutoff_d].copy()
     df_d["date_str"] = df_d["date"].dt.strftime("%Y-%m-%d")
-    grp_d = df_d.groupby("date_str").agg(
-        blog_views=("blog_views", "sum"),
-        총_vola_클릭=("총_vola_클릭", "sum"),
-        원고수=("원고수", "sum"),
-        총비용=("총비용", "sum"),
-        노출수=("노출수", "sum"),
-        노출_검색량=("노출_검색량", "sum"),
-    ).reset_index()
+    grp_d = agg_cols(df_d, "date_str")
+    st.caption(f"최근 14일 기준 ({cutoff_d.strftime('%Y.%m.%d')} ~ {max_d.strftime('%Y.%m.%d')})")
     render_tab(grp_d, "date_str", "날짜")
-
     with st.expander("일별 상세 데이터"):
         st.dataframe(grp_d.sort_values("date_str", ascending=False).reset_index(drop=True),
                      use_container_width=True)
@@ -540,11 +486,6 @@ if len(df_filtered) > 0:
         total_cnt = blog_cnt + seed_cnt
         insights.append(f"📝 총 **{total_cnt:,}건** 원고 중 블로그 **{blog_cnt}건({blog_cnt/total_cnt*100:.0f}%)**, 시딩 **{seed_cnt}건({seed_cnt/total_cnt*100:.0f}%)** 발행됐습니다.")
 
-    # 비용 효율
-    if total_cost > 0 and total_vola > 0:
-        cpclick = total_cost / total_vola
-        insights.append(f"💰 클릭당 마케팅 비용은 **{cpclick:,.0f}원**입니다. 이는 블로그 조회수를 통해 사이트로 유입된 잠재 고객 1명을 확보하는 데 드는 추정 비용입니다.")
-
     # 키워드 노출
     if total_exposure > 0:
         insights.append(f"🔍 현재까지 **{total_exposure:,}건** 키워드가 검색 결과에 노출되어 브랜드 검색 접점이 지속 확대되고 있습니다.")
@@ -567,35 +508,18 @@ if len(df_filtered) > 0:
 
     if not df_work_f.empty and not df_seed_f.empty:
         st.divider()
-        st.subheader(f"📊 블로그 vs 시딩 기여도  `{period_label}`")
-        col_p1, col_p2 = st.columns(2)
-
-        with col_p1:
-            pie_data = pd.DataFrame({
-                "채널": ["블로그", "시딩"],
-                "원고수": [len(df_work_f), len(df_seed_f)]
-            })
+        st.subheader(f"📊 블로그 vs 시딩 원고 발행 비중  `{period_label}`")
+        pie_data = pd.DataFrame({
+            "채널": ["블로그", "시딩"],
+            "원고수": [len(df_work_f), len(df_seed_f)]
+        })
+        col_p, _ = st.columns([1, 1])
+        with col_p:
             pie = alt.Chart(pie_data).mark_arc(innerRadius=50).encode(
                 theta=alt.Theta("원고수:Q"),
                 color=alt.Color("채널:N", scale=alt.Scale(
                     domain=["블로그", "시딩"], range=["#4C78A8", "#54A24B"]
                 )),
                 tooltip=["채널", "원고수"]
-            ).properties(title="원고 발행 비중", height=220)
+            ).properties(height=240)
             st.altair_chart(pie, use_container_width=True)
-
-        with col_p2:
-            blog_cost = df_work_f["총비용"].sum() if not df_work_f.empty else 0
-            seed_cost = df_seed_f["총비용"].sum() if not df_seed_f.empty else 0
-            pie_cost = pd.DataFrame({
-                "채널": ["블로그", "시딩"],
-                "비용": [blog_cost, seed_cost]
-            })
-            pie2 = alt.Chart(pie_cost).mark_arc(innerRadius=50).encode(
-                theta=alt.Theta("비용:Q"),
-                color=alt.Color("채널:N", scale=alt.Scale(
-                    domain=["블로그", "시딩"], range=["#4C78A8", "#54A24B"]
-                )),
-                tooltip=["채널", alt.Tooltip("비용:Q", format=",.0f")]
-            ).properties(title="마케팅 비용 비중", height=220)
-            st.altair_chart(pie2, use_container_width=True)
