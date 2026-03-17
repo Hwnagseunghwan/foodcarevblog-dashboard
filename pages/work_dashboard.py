@@ -115,7 +115,7 @@ else:
     df["노출여부"] = df["노출여부"].astype(str).str.strip()
 
     # code 기준 중복 제거 → 원고 송출 단위
-    dedup_cols = ["code", "작성자", "브랜드명", "제품명", "소재명", "특이사항",
+    dedup_cols = ["code", "담당자", "브랜드명", "제품명", "소재명", "특이사항",
                   "year", "parsed_date", "year_month", "week_label", "week", "month",
                   "Blog_URL", "원고비용", "작업비용", "송출비용", "총비용", "보라링크1", "보라링크2", "보라링크3"]
     dedup_cols = [c for c in dedup_cols if c in df.columns]
@@ -129,13 +129,13 @@ else:
 
         # 필터 (최상단)
         col_f1, col_f2, col_f3 = st.columns(3)
-        f_writer = col_f1.selectbox("작성자 필터", ["전체"] + sorted(df_dedup["작성자"].dropna().unique().tolist()), key="sent_writer")
+        f_writer = col_f1.selectbox("담당자 필터", ["전체"] + sorted(df_dedup["담당자"].dropna().unique().tolist()), key="sent_writer")
         f_brand  = col_f2.selectbox("브랜드명 필터", ["전체"] + sorted(df_dedup["브랜드명"].dropna().unique().tolist()), key="sent_brand")
         f_view   = col_f3.selectbox("단위", ["월별", "주간별", "일별"], key="sent_view")
 
         df_f = df_sent.copy()
         if f_writer != "전체":
-            df_f = df_f[df_f["작성자"] == f_writer]
+            df_f = df_f[df_f["담당자"] == f_writer]
         if f_brand != "전체":
             df_f = df_f[df_f["브랜드명"] == f_brand]
 
@@ -152,8 +152,8 @@ else:
 
         col_s1, col_s2, col_s3, col_s4 = st.columns(4)
         col_s1.metric("총 원고 송출량", f"{total_sent}건")
-        for i, writer in enumerate(sorted(df_f["작성자"].dropna().unique())):
-            cnt = len(df_f[df_f["작성자"] == writer])
+        for i, writer in enumerate(sorted(df_f["담당자"].dropna().unique())):
+            cnt = len(df_f[df_f["담당자"] == writer])
             [col_s2, col_s3, col_s4][i].metric(f"{writer}", f"{cnt}건")
 
         st.divider()
@@ -164,10 +164,10 @@ else:
         col_k1.metric("원고당 평균 키워드 수", f"{avg_kw:.1f}개")
         col_k2.metric("원고당 평균 검색량(M) 합계", f"{avg_search:,.0f}")
 
-        tbl = df_f[["code", "작성자", "브랜드명", "제품명", "parsed_date"]].copy()
+        tbl = df_f[["code", "담당자", "브랜드명", "제품명", "parsed_date"]].copy()
         tbl = tbl.merge(kw_stats, on="code", how="left")
         tbl["parsed_date"] = tbl["parsed_date"].dt.strftime("%Y-%m-%d").where(tbl["parsed_date"].notna(), "")
-        tbl.columns = ["code", "작성자", "브랜드명", "제품명", "날짜", "키워드 수", "검색량(M) 합계"]
+        tbl.columns = ["code", "담당자", "브랜드명", "제품명", "날짜", "키워드 수", "검색량(M) 합계"]
         tbl = tbl.sort_values("날짜", ascending=False).reset_index(drop=True)
 
         with st.expander("총 원고 송출량 상세 보기"):
@@ -182,15 +182,15 @@ else:
         if f_view == "월별":
             cutoff = max_date - pd.DateOffset(months=5)
             df_view = df_f[df_f["parsed_date"] >= cutoff.replace(day=1)]
-            grp = df_view.groupby(["year_month", "작성자"]).size().reset_index(name="송출량")
+            grp = df_view.groupby(["year_month", "담당자"]).size().reset_index(name="송출량")
             grp_total = df_view.groupby("year_month").size().reset_index(name="송출량").sort_values("year_month")
 
             st.subheader("월별 원고 송출량 (최근 6개월)")
             bar = alt.Chart(grp.sort_values("year_month")).mark_bar().encode(
                 x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
-                color=alt.Color("작성자:N", title="작성자"),
-                tooltip=["year_month", "작성자", "송출량"]
+                color=alt.Color("담당자:N", title="담당자"),
+                tooltip=["year_month", "담당자", "송출량"]
             )
             text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("year_month:N", sort=None),
@@ -218,15 +218,15 @@ else:
         elif f_view == "주간별":
             cutoff = max_date - pd.Timedelta(days=89)
             df_view = df_f[df_f["parsed_date"] >= cutoff]
-            grp = df_view.groupby(["week_label", "작성자"]).size().reset_index(name="송출량")
+            grp = df_view.groupby(["week_label", "담당자"]).size().reset_index(name="송출량")
             grp_total = df_view.groupby("week_label").size().reset_index(name="송출량").sort_values("week_label")
 
             st.subheader("주간별 원고 송출량 (최근 90일)")
             bar = alt.Chart(grp.sort_values("week_label")).mark_bar().encode(
                 x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
-                color=alt.Color("작성자:N", title="작성자"),
-                tooltip=["week_label", "작성자", "송출량"]
+                color=alt.Color("담당자:N", title="담당자"),
+                tooltip=["week_label", "담당자", "송출량"]
             )
             text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("week_label:N", sort=None),
@@ -238,8 +238,8 @@ else:
         else:  # 일별
             cutoff = max_date - pd.Timedelta(days=13)
             df_view = df_f[df_f["parsed_date"] >= cutoff]
-            grp = df_view.groupby([df_view["parsed_date"].dt.strftime("%Y-%m-%d"), "작성자"]).size().reset_index(name="송출량")
-            grp.columns = ["date", "작성자", "송출량"]
+            grp = df_view.groupby([df_view["parsed_date"].dt.strftime("%Y-%m-%d"), "담당자"]).size().reset_index(name="송출량")
+            grp.columns = ["date", "담당자", "송출량"]
             grp_total = df_view.groupby(df_view["parsed_date"].dt.strftime("%Y-%m-%d")).size().reset_index(name="송출량")
             grp_total.columns = ["date", "송출량"]
             grp_total = grp_total.sort_values("date")
@@ -248,8 +248,8 @@ else:
             bar = alt.Chart(grp.sort_values("date")).mark_bar().encode(
                 x=alt.X("date:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
                 y=alt.Y("송출량:Q", title="송출량"),
-                color=alt.Color("작성자:N", title="작성자"),
-                tooltip=["date", "작성자", "송출량"]
+                color=alt.Color("담당자:N", title="담당자"),
+                tooltip=["date", "담당자", "송출량"]
             )
             text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
                 x=alt.X("date:N", sort=None),
@@ -281,7 +281,7 @@ else:
 
         # 원고 송출 원본 테이블
         with st.expander("원고 송출 원본 데이터 보기"):
-            show = df_f[["parsed_date", "작성자", "브랜드명", "제품명", "소재명", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]].copy()
+            show = df_f[["parsed_date", "담당자", "브랜드명", "제품명", "소재명", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]].copy()
             show["parsed_date"] = show["parsed_date"].dt.strftime("%Y-%m-%d")
             show = show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
             st.dataframe(
