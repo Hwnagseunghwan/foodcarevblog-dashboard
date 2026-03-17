@@ -25,11 +25,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.sidebar.markdown('<p style="font-size:28px; font-weight:900; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:-0.5px; margin:0;">Cle Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.divider()
-st.sidebar.markdown('<p style="font-size:11px; color:#888; font-weight:600; letter-spacing:0.5px; margin:0 0 4px 0;">Cle Blog Dashboard</p>', unsafe_allow_html=True)
+st.sidebar.markdown('<p style="font-size:16px; color:#ccc; font-weight:700; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:0.5px; margin:0 0 12px 0;">— Cle Blog Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Views")
 st.sidebar.page_link("pages/vola_dashboard.py", label="🔗 Cle Blog Vola Tracker")
 st.sidebar.page_link("pages/work_dashboard.py", label="📋 Cle Blog Work Tracker")
 st.sidebar.divider()
+st.sidebar.markdown('<p style="font-size:16px; color:#ccc; font-weight:700; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:0.5px; margin:0 0 12px 0;">— Cle Seeding Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.page_link("pages/seeding_dashboard.py", label="🌱 Seeding Work Dashboard")
 
 st.markdown("<a id='vola-dashboard'></a>", unsafe_allow_html=True)
