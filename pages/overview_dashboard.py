@@ -250,16 +250,55 @@ st.title("📈 Cle 마케팅 통합 성과 대시보드")
 st.caption("블로그 · 시딩 · Vola 클릭 데이터를 종합한 마케팅 전체 성과 요약")
 st.divider()
 
-# ── 전체 누적 KPI ───────────────────────────────────────────────
-total_views = int(df_daily["blog_views"].sum())
-total_vola = int(df_daily["총_vola_클릭"].sum())
-total_articles = int(df_daily["원고수"].sum())
-total_cost = df_daily["총비용"].sum()
-total_exposure = int(df_daily["노출수"].sum())
-ctr = total_vola / total_views * 100 if total_views > 0 else 0
-cost_per_click = total_cost / total_vola if total_vola > 0 else 0
+# ── 기간 선택기 ─────────────────────────────────────────────────
+min_date = df_daily["date"].min().date()
+max_date_val = df_daily["date"].max().date()
 
-st.subheader("전체 누적 성과")
+period_options = ["전체", "최근 30일", "최근 90일", "최근 6개월", "직접 선택"]
+col_sel, col_range = st.columns([2, 3])
+with col_sel:
+    selected_period = st.selectbox("📅 조회 기간", period_options, index=0, key="kpi_period")
+
+if selected_period == "최근 30일":
+    date_from = max_date_val - timedelta(days=29)
+    date_to = max_date_val
+elif selected_period == "최근 90일":
+    date_from = max_date_val - timedelta(days=89)
+    date_to = max_date_val
+elif selected_period == "최근 6개월":
+    date_from = (pd.Timestamp(max_date_val) - pd.DateOffset(months=6)).date()
+    date_to = max_date_val
+elif selected_period == "직접 선택":
+    with col_range:
+        date_from, date_to = st.date_input(
+            "날짜 범위",
+            value=(max_date_val - timedelta(days=29), max_date_val),
+            min_value=min_date,
+            max_value=max_date_val,
+            key="kpi_date_range"
+        ) if True else (min_date, max_date_val)
+    if not isinstance(date_from, type(date_to)):
+        date_from, date_to = min_date, max_date_val
+else:  # 전체
+    date_from = min_date
+    date_to = max_date_val
+
+period_label = f"{date_from.strftime('%Y.%m.%d')} ~ {date_to.strftime('%Y.%m.%d')}"
+df_filtered = df_daily[
+    (df_daily["date"].dt.date >= date_from) &
+    (df_daily["date"].dt.date <= date_to)
+]
+
+st.divider()
+
+# ── 누적 KPI ────────────────────────────────────────────────────
+total_views = int(df_filtered["blog_views"].sum())
+total_vola = int(df_filtered["총_vola_클릭"].sum())
+total_articles = int(df_filtered["원고수"].sum())
+total_cost = df_filtered["총비용"].sum()
+total_exposure = int(df_filtered["노출수"].sum())
+
+st.subheader(f"누적 성과  `{period_label}`")
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("📖 블로그 총 조회수", f"{total_views:,}")
 c2.metric("🔗 총 Vola 클릭수", f"{total_vola:,}")
@@ -271,6 +310,7 @@ st.divider()
 
 # ── 탭 ─────────────────────────────────────────────────────────
 tab1, tab2, tab3 = st.tabs(["📆 월별 성과", "📅 주별 성과", "📋 일별 성과"])
+df_tab = df_filtered.copy()  # 탭도 동일 기간 적용
 
 
 def render_tab(df_grp, x_col, x_title):
@@ -385,10 +425,7 @@ def render_tab(df_grp, x_col, x_title):
 
 # ── 탭1: 월별 ────────────────────────────────────────────────────
 with tab1:
-    max_date = df_daily["date"].max()
-    cutoff = (max_date - pd.DateOffset(months=5)).replace(day=1)
-    df_m = df_daily[df_daily["date"] >= cutoff]
-    grp_m = df_m.groupby("year_month").agg(
+    grp_m = df_tab.groupby("year_month").agg(
         blog_views=("blog_views", "sum"),
         총_vola_클릭=("총_vola_클릭", "sum"),
         원고수=("원고수", "sum"),
@@ -405,10 +442,7 @@ with tab1:
 
 # ── 탭2: 주별 ────────────────────────────────────────────────────
 with tab2:
-    max_date = df_daily["date"].max()
-    cutoff = max_date - pd.Timedelta(days=89)
-    df_w = df_daily[df_daily["date"] >= cutoff]
-    grp_w = df_w.groupby("week_label").agg(
+    grp_w = df_tab.groupby("week_label").agg(
         blog_views=("blog_views", "sum"),
         총_vola_클릭=("총_vola_클릭", "sum"),
         원고수=("원고수", "sum"),
@@ -425,9 +459,7 @@ with tab2:
 
 # ── 탭3: 일별 ────────────────────────────────────────────────────
 with tab3:
-    max_date = df_daily["date"].max()
-    cutoff = max_date - pd.Timedelta(days=29)
-    df_d = df_daily[df_daily["date"] >= cutoff].copy()
+    df_d = df_tab.copy()
     df_d["date_str"] = df_d["date"].dt.strftime("%Y-%m-%d")
     grp_d = df_d.groupby("date_str").agg(
         blog_views=("blog_views", "sum"),
@@ -447,14 +479,14 @@ with tab3:
 # ── 시사점 ───────────────────────────────────────────────────────
 st.divider()
 st.subheader("🔍 종합 시사점")
-st.caption(f"기준일: {datetime.now().strftime('%Y년 %m월 %d일')} | 전체 누적 데이터 기준")
+st.caption(f"기준: {period_label}")
 
 # 최근 월 vs 직전 월 비교
-if len(df_daily) > 0:
+if len(df_filtered) > 0:
     cur_month = datetime.now().strftime("%Y-%m")
     prev_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 
-    grp_all_m = df_daily.groupby("year_month").agg(
+    grp_all_m = df_filtered.groupby("year_month").agg(
         blog_views=("blog_views", "sum"),
         총_vola_클릭=("총_vola_클릭", "sum"),
         원고수=("원고수", "sum"),
@@ -506,16 +538,25 @@ if len(df_daily) > 0:
     for msg in insights:
         st.markdown(f"- {msg}")
 
-    # 블로그 vs 시딩 기여도 파이차트
-    if not df_work.empty and not df_seed.empty:
+    # 블로그 vs 시딩 기여도 파이차트 (선택 기간 기준)
+    df_work_f = df_work[
+        (df_work["parsed_date"].dt.date >= date_from) &
+        (df_work["parsed_date"].dt.date <= date_to)
+    ] if not df_work.empty else df_work
+    df_seed_f = df_seed[
+        (df_seed["parsed_date"].dt.date >= date_from) &
+        (df_seed["parsed_date"].dt.date <= date_to)
+    ] if not df_seed.empty else df_seed
+
+    if not df_work_f.empty and not df_seed_f.empty:
         st.divider()
-        st.subheader("📊 블로그 vs 시딩 기여도")
+        st.subheader(f"📊 블로그 vs 시딩 기여도  `{period_label}`")
         col_p1, col_p2 = st.columns(2)
 
         with col_p1:
             pie_data = pd.DataFrame({
                 "채널": ["블로그", "시딩"],
-                "원고수": [len(df_work), len(df_seed)]
+                "원고수": [len(df_work_f), len(df_seed_f)]
             })
             pie = alt.Chart(pie_data).mark_arc(innerRadius=50).encode(
                 theta=alt.Theta("원고수:Q"),
@@ -527,8 +568,8 @@ if len(df_daily) > 0:
             st.altair_chart(pie, use_container_width=True)
 
         with col_p2:
-            blog_cost = df_work["총비용"].sum() if not df_work.empty else 0
-            seed_cost = df_seed["총비용"].sum() if not df_seed.empty else 0
+            blog_cost = df_work_f["총비용"].sum() if not df_work_f.empty else 0
+            seed_cost = df_seed_f["총비용"].sum() if not df_seed_f.empty else 0
             pie_cost = pd.DataFrame({
                 "채널": ["블로그", "시딩"],
                 "비용": [blog_cost, seed_cost]
