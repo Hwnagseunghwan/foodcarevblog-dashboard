@@ -160,7 +160,17 @@ def build_work_df(rows, source):
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
-    df["parsed_date"] = df["date"].apply(parse_date)
+    # date 컬럼이 "12. 18" 형식이면 year 컬럼과 조합
+    def parse_work_date(row):
+        date_str = str(row.get("date", "")).strip()
+        year_val = row.get("year", "")
+        # 연도가 없는 경우 year 컬럼 붙여서 파싱
+        if year_val and len(date_str) <= 7:
+            full = f"{year_val}. {date_str}"
+        else:
+            full = date_str
+        return parse_date(full)
+    df["parsed_date"] = df.apply(parse_work_date, axis=1)
     df["source"] = source
     for col in ["원고비용", "작업비용", "송출비용"]:
         if col in df.columns:
