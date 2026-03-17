@@ -31,6 +31,7 @@ st.sidebar.page_link("pages/work_dashboard.py", label="📋 Cle Blog Work Tracke
 st.sidebar.divider()
 st.sidebar.markdown('<p style="font-size:16px; color:#ccc; font-weight:700; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:0.5px; margin:0 0 12px 0;">— Cle Seeding Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.page_link("pages/seeding_dashboard.py", label="🌱 Cle Seeding Work Tracker")
+st.sidebar.page_link("pages/seeding_vola_dashboard.py", label="🔗 Cle Seeding Vola Tracker")
 st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()

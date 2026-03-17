@@ -31,6 +31,7 @@ st.sidebar.page_link("pages/work_dashboard.py", label="📋 Cle Blog Work Tracke
 st.sidebar.divider()
 st.sidebar.markdown('<p style="font-size:16px; color:#ccc; font-weight:700; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:0.5px; margin:0 0 12px 0;">— Cle Seeding Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.page_link("pages/seeding_dashboard.py", label="🌱 Cle Seeding Work Tracker")
+st.sidebar.page_link("pages/seeding_vola_dashboard.py", label="🔗 Cle Seeding Vola Tracker")
 st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()
@@ -74,7 +75,10 @@ df["parsed_date"] = df.apply(parse_date, axis=1)
 df["year_month"] = df["parsed_date"].dt.strftime("%Y-%m")
 df["week_label"] = df["parsed_date"].dt.strftime("%Y-W") + df["parsed_date"].dt.isocalendar().week.astype(str).str.zfill(2)
 
-df["검색량(M)"] = pd.to_numeric(df["검색량(M)"], errors="coerce").fillna(0)
+if "검색량(M)" in df.columns:
+    df["검색량(M)"] = pd.to_numeric(df["검색량(M)"], errors="coerce").fillna(0)
+else:
+    df["검색량(M)"] = 0
 df["원고비용"] = pd.to_numeric(df["원고비용"], errors="coerce").fillna(0)
 df["작업비용"] = pd.to_numeric(df["작업비용"], errors="coerce").fillna(0)
 df["송출비용"] = pd.to_numeric(df["송출비용"], errors="coerce").fillna(0)
@@ -84,7 +88,7 @@ df["노출여부"] = df["노출여부"].astype(str).str.strip()
 EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"]
 
 # code 기준 중복 제거 → 원고 송출 단위
-dedup_cols = ["code", "담당자", "블로그명", "브랜드명", "제품", "소재명", "특이사항",
+dedup_cols = ["code", "담당자", "블로그명", "브랜드명", "제품명", "소재명", "특이사항",
               "year", "parsed_date", "year_month", "week_label", "week", "month",
               "Blog_URL", "원고비용", "작업비용", "송출비용", "총비용",
               "보라링크1", "보라링크2", "보라링크3"]
@@ -136,10 +140,10 @@ with tab_sent:
     col_k1.metric("원고당 평균 키워드 수", f"{avg_kw:.1f}개")
     col_k2.metric("원고당 평균 검색량(M) 합계", f"{avg_search:,.0f}")
 
-    tbl = df_f[["code", "담당자", "블로그명", "브랜드명", "제품", "parsed_date"]].copy()
+    tbl = df_f[["code", "담당자", "블로그명", "브랜드명", "제품명", "parsed_date"]].copy()
     tbl = tbl.merge(kw_stats, on="code", how="left")
     tbl["parsed_date"] = tbl["parsed_date"].dt.strftime("%Y-%m-%d").where(tbl["parsed_date"].notna(), "")
-    tbl.columns = ["code", "담당자", "블로그명", "브랜드명", "제품", "날짜", "키워드 수", "검색량(M) 합계"]
+    tbl.columns = ["code", "담당자", "블로그명", "브랜드명", "제품명", "날짜", "키워드 수", "검색량(M) 합계"]
     tbl = tbl.sort_values("날짜", ascending=False).reset_index(drop=True)
 
     with st.expander("총 원고 송출량 상세 보기"):
@@ -234,13 +238,13 @@ with tab_sent:
 
     # 제품별 송출량
     st.subheader("제품별 송출량")
-    grp_prod = df_f.groupby(["제품", "브랜드명"]).size().reset_index(name="송출량")
+    grp_prod = df_f.groupby(["제품명", "브랜드명"]).size().reset_index(name="송출량")
     grp_prod = grp_prod.sort_values("송출량", ascending=False)
     bar_p = alt.Chart(grp_prod).mark_bar().encode(
         x=alt.X("송출량:Q", title="송출량"),
         y=alt.Y("제품:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
         color=alt.Color("브랜드명:N", title="브랜드명"),
-        tooltip=["제품", "브랜드명", "송출량"]
+        tooltip=["제품명", "브랜드명", "송출량"]
     )
     text_p = alt.Chart(grp_prod).mark_text(dx=5, fontSize=11, align="left").encode(
         x=alt.X("송출량:Q"),
@@ -252,7 +256,7 @@ with tab_sent:
     st.divider()
 
     with st.expander("원고 송출 원본 데이터 보기"):
-        show_cols = ["parsed_date", "담당자", "블로그명", "브랜드명", "제품", "소재명", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]
+        show_cols = ["parsed_date", "담당자", "블로그명", "브랜드명", "제품명", "소재명", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]
         show_cols = [c for c in show_cols if c in df_f.columns]
         show = df_f[show_cols].copy()
         show["parsed_date"] = show["parsed_date"].dt.strftime("%Y-%m-%d")
@@ -282,7 +286,7 @@ with tab_kw:
     # 필터 (최상단)
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     f_kw_brand   = col_f1.selectbox("브랜드 필터", ["전체"] + sorted(df_kw["브랜드명"].dropna().unique().tolist()), key="kw_brand")
-    f_kw_product = col_f2.selectbox("제품 필터", ["전체"] + sorted(df_kw["제품"].dropna().unique().tolist()), key="kw_product")
+    f_kw_product = col_f2.selectbox("제품 필터", ["전체"] + sorted(df_kw["제품명"].dropna().unique().tolist()), key="kw_product")
     f_kw_exposed = col_f3.selectbox("노출여부 필터", ["전체", "노출", "미노출"], key="kw_exposed")
     f_kw_view    = col_f4.selectbox("단위", ["월별", "주간별", "일별"], key="kw_view")
 
@@ -290,7 +294,7 @@ with tab_kw:
     if f_kw_brand != "전체":
         df_kf = df_kf[df_kf["브랜드명"] == f_kw_brand]
     if f_kw_product != "전체":
-        df_kf = df_kf[df_kf["제품"] == f_kw_product]
+        df_kf = df_kf[df_kf["제품명"] == f_kw_product]
     if f_kw_exposed == "노출":
         df_kf = df_kf[df_kf["노출여부"].isin(EXPOSED_VAL)]
     elif f_kw_exposed == "미노출":
@@ -523,7 +527,7 @@ with tab_kw:
 
     # 제품별 키워드/검색량/노출 현황
     st.subheader("제품별 키워드 현황")
-    prod_grp = df_kf.groupby(["제품", "브랜드명"]).agg(
+    prod_grp = df_kf.groupby(["제품명", "브랜드명"]).agg(
         키워드수=("키워드", "count"),
         검색량합계=("검색량(M)", "sum"),
         노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
@@ -543,7 +547,7 @@ with tab_kw:
     st.divider()
 
     with st.expander("키워드 원본 데이터 보기"):
-        kw_show = df_kf[["parsed_date", "브랜드명", "제품", "메인/서브", "키워드", "검색량(M)", "노출여부", "최초순위", "Blog_URL"]].copy()
+        kw_show = df_kf[["parsed_date", "브랜드명", "제품명", "메인/서브", "키워드", "검색량(M)", "노출여부", "최초순위", "Blog_URL"]].copy()
         kw_show["parsed_date"] = kw_show["parsed_date"].dt.strftime("%Y-%m-%d")
         kw_show = kw_show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
         st.dataframe(
