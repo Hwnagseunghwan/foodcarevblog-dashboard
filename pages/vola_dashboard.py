@@ -25,7 +25,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.sidebar.markdown('<p style="font-size:28px; font-weight:900; font-family:\'Apple SD Gothic Neo\', \'Noto Sans KR\', \'Malgun Gothic\', sans-serif; letter-spacing:-0.5px; margin:0;">Cle Dashboard</p>', unsafe_allow_html=True)
 st.sidebar.divider()
-st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Dashboard")
+st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Views")
 st.sidebar.page_link("pages/vola_dashboard.py", label="🔗 Vola Dashboard")
 st.sidebar.page_link("pages/work_dashboard.py", label="📋 Work Dashboard")
 st.sidebar.divider()
