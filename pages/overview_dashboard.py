@@ -185,6 +185,7 @@ def build_work_df(rows, source):
     df["노출"] = df.get("노출여부", pd.Series([""] * len(df))).apply(
         lambda x: 1 if str(x).strip() in ("노출", "Y", "y", "O", "o", "1") else 0
     )
+    df["노출_검색량"] = df["검색량(M)"] * df["노출"]
     return df.dropna(subset=["parsed_date"])
 
 
@@ -232,11 +233,12 @@ def make_daily_df():
             총비용=("총비용", "sum"),
             검색량=("검색량(M)", "sum"),
             노출수=("노출", "sum"),
+            노출_검색량=("노출_검색량", "sum"),
         ).reset_index()
-        work_agg.columns = ["date", "원고수", "총비용", "검색량", "노출수"]
+        work_agg.columns = ["date", "원고수", "총비용", "검색량", "노출수", "노출_검색량"]
         base = base.merge(work_agg, on="date", how="left")
     else:
-        for col in ["원고수", "총비용", "검색량", "노출수"]:
+        for col in ["원고수", "총비용", "검색량", "노출수", "노출_검색량"]:
             base[col] = 0
 
     base = base.fillna(0)
@@ -307,14 +309,16 @@ total_vola = int(df_filtered["총_vola_클릭"].sum())
 total_articles = int(df_filtered["원고수"].sum())
 total_cost = df_filtered["총비용"].sum()
 total_exposure = int(df_filtered["노출수"].sum())
+total_search_vol = int(df_filtered["노출_검색량"].sum())
 
 st.subheader(f"누적 성과  `{period_label}`")
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("📖 블로그 총 조회수", f"{total_views:,}")
 c2.metric("🔗 총 Vola 클릭수", f"{total_vola:,}")
 c3.metric("📝 총 원고 발행수", f"{total_articles:,}건")
-c4.metric("🔍 키워드 노출수", f"{total_exposure:,}건")
-c5.metric("💰 총 마케팅 비용", f"{total_cost:,.0f}원")
+c4.metric("🔍 노출 키워드 수", f"{total_exposure:,}건")
+c5.metric("🔎 노출 키워드 검색량", f"{total_search_vol:,}")
+c6.metric("💰 총 마케팅 비용", f"{total_cost:,.0f}원")
 
 st.divider()
 
@@ -441,6 +445,7 @@ with tab1:
         원고수=("원고수", "sum"),
         총비용=("총비용", "sum"),
         노출수=("노출수", "sum"),
+        노출_검색량=("노출_검색량", "sum"),
     ).reset_index()
     render_tab(grp_m, "year_month", "월")
 
@@ -458,6 +463,7 @@ with tab2:
         원고수=("원고수", "sum"),
         총비용=("총비용", "sum"),
         노출수=("노출수", "sum"),
+        노출_검색량=("노출_검색량", "sum"),
     ).reset_index()
     render_tab(grp_w, "week_label", "주차")
 
@@ -477,6 +483,7 @@ with tab3:
         원고수=("원고수", "sum"),
         총비용=("총비용", "sum"),
         노출수=("노출수", "sum"),
+        노출_검색량=("노출_검색량", "sum"),
     ).reset_index()
     render_tab(grp_d, "date_str", "날짜")
 
