@@ -41,17 +41,18 @@ st.title("🌱 Cle Seeding marketing 대시보드")
 
 
 @st.cache_data(ttl=300)
-def load_data():
-    if not Path(DATA_FILE).exists():
+def load_data(data_file):
+    path = Path(__file__).parent.parent / data_file
+    if not path.exists():
         return pd.DataFrame(), ""
-    with open(DATA_FILE, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     df = pd.DataFrame(raw.get("rows", []))
     updated_at = raw.get("updated_at", "")
     return df, updated_at
 
 
-df, updated_at = load_data()
+df, updated_at = load_data(DATA_FILE)
 
 if df.empty:
     st.warning("데이터가 없습니다. seeding_scraper.py를 먼저 실행해주세요.")
