@@ -72,7 +72,7 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
-st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누리지 말아주세요.")
+st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누르지 마세요.")
 
 
 # ── 데이터 로드 ──────────────────────────────────────────────────
@@ -355,46 +355,29 @@ st.subheader("🔍 종합 시사점")
 st.caption(f"기준: {period_label}")
 
 if len(df_filtered) > 0:
-    cur_month = datetime.now().strftime("%Y-%m")
-    prev_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
-
-    grp_all_m = df_filtered.groupby("year_month").agg(
-        blog_views=("blog_views", "sum"),
-        총_vola_클릭=("총_vola_클릭", "sum"),
-        원고수=("원고수", "sum"),
-    )
-
     insights = []
-
-    if prev_month in grp_all_m.index and cur_month in grp_all_m.index:
-        v_cur = grp_all_m.loc[cur_month, "blog_views"]
-        v_prev = grp_all_m.loc[prev_month, "blog_views"]
-        if v_prev > 0:
-            r = (v_cur - v_prev) / v_prev * 100
-            if r > 0:
-                insights.append(f"📈 블로그 조회수가 전월 대비 **{abs(r):.1f}% 증가**하며 콘텐츠 도달이 확대되고 있습니다.")
-            else:
-                insights.append(f"📉 블로그 조회수가 전월 대비 **{abs(r):.1f}% 감소**했습니다. 콘텐츠 발행 주기를 점검해주세요.")
 
     if total_views > 0 and total_vola > 0:
         ctr_val = total_vola / total_views * 100
         if ctr_val >= 5:
-            insights.append(f"🔗 Vola 링크 전환율이 **{ctr_val:.1f}%**로 콘텐츠를 통한 사이트 유입이 활발하게 이루어지고 있습니다.")
+            insights.append(("🔗 Vola 전환율", f"{ctr_val:.1f}% — 콘텐츠를 통한 사이트 유입이 활발하게 이루어지고 있습니다."))
         elif ctr_val >= 2:
-            insights.append(f"🔗 Vola 링크 전환율은 **{ctr_val:.1f}%**입니다. CTA 문구나 링크 위치를 개선하면 유입을 더 높일 수 있습니다.")
+            insights.append(("🔗 Vola 전환율", f"{ctr_val:.1f}% — CTA 문구나 링크 위치를 개선하면 유입을 더 높일 수 있습니다."))
         else:
-            insights.append(f"🔗 Vola 링크 전환율이 **{ctr_val:.1f}%**로 낮습니다. 링크 노출 빈도와 위치 개선을 권장합니다.")
+            insights.append(("🔗 Vola 전환율", f"{ctr_val:.1f}% — 링크 노출 빈도와 위치 개선을 권장합니다."))
 
     if not df_work_f.empty and not df_seed_f.empty:
         blog_cnt = len(df_work_f)
         seed_cnt = len(df_seed_f)
         total_cnt = blog_cnt + seed_cnt
-        insights.append(f"📝 총 **{total_cnt:,}건** 원고 중 블로그 **{blog_cnt}건({blog_cnt/total_cnt*100:.0f}%)**, 시딩 **{seed_cnt}건({seed_cnt/total_cnt*100:.0f}%)** 발행됐습니다.")
+        insights.append(("📝 원고 발행", f"총 {total_cnt:,}건 · 블로그 {blog_cnt}건({blog_cnt/total_cnt*100:.0f}%) / 시딩 {seed_cnt}건({seed_cnt/total_cnt*100:.0f}%)"))
 
     if total_exposure > 0:
-        insights.append(f"🔍 현재까지 **{total_exposure:,}건** 키워드가 검색 결과에 노출되어 브랜드 검색 접점이 지속 확대되고 있습니다.")
+        insights.append(("🔍 키워드 노출", f"{total_exposure:,}건 — 브랜드 검색 접점이 지속 확대되고 있습니다."))
 
-    insights.append("🛒 Vola 클릭의 주요 목적지(이벤트·상품 페이지)로의 유입은 **회원가입 및 구매 전환**으로 이어질 가능성이 높습니다. 향후 전환 데이터(가입수·주문수) 연동 시 실제 ROI 측정이 가능합니다.")
+    insights.append(("🛒 전환 가능성", "Vola 클릭의 주요 목적지(이벤트·상품 페이지) 유입은 회원가입 및 구매 전환으로 이어질 가능성이 높습니다. 향후 전환 데이터(가입수·주문수) 연동 시 실제 ROI 측정이 가능합니다."))
 
-    for msg in insights:
-        st.markdown(f"- {msg}")
+    for title, body in insights:
+        st.markdown(f"**{title}**")
+        st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;{body}")
+        st.write("")

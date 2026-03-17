@@ -536,4 +536,4 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
-st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누리지 말아주세요.")
+st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누르지 마세요.")
