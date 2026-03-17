@@ -43,13 +43,21 @@ if "collect_msg" in st.session_state:
 if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
     import subprocess, sys
     root = Path(__file__).parent.parent
-    scrapers = ["naver_scraper.py", "vola_scraper.py", "sheets_scraper.py", "seeding_scraper.py", "seeding_vola_scraper.py"]
+    scrapers = [
+        ("📊 블로그 조회수", "naver_scraper.py"),
+        ("🔗 Vola 클릭수", "vola_scraper.py"),
+        ("📋 Blog 업무시트", "sheets_scraper.py"),
+        ("🌱 Seeding 업무시트", "seeding_scraper.py"),
+        ("🔗 Seeding Vola", "seeding_vola_scraper.py"),
+    ]
+    status_box = st.sidebar.empty()
     errors = []
-    with st.spinner("전체 데이터 수집 중..."):
-        for script in scrapers:
-            r = subprocess.run([sys.executable, str(root / script)], cwd=str(root), capture_output=True)
-            if r.returncode != 0:
-                errors.append(script.replace("_scraper.py", ""))
+    for label, script in scrapers:
+        status_box.info(f"⏳ {label} 수집 중...")
+        r = subprocess.run([sys.executable, str(root / script)], cwd=str(root), capture_output=True)
+        if r.returncode != 0:
+            errors.append(label)
+    status_box.empty()
     st.session_state["collect_msg"] = ("오류: " + ", ".join(errors)) if errors else "✅ 전체 수집 완료!"
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
