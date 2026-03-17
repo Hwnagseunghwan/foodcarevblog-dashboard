@@ -59,8 +59,8 @@ def _do_login(email, password):
         }
         st.session_state["access_token"] = res.session.access_token
         st.rerun()
-    except Exception:
-        st.error("이메일 또는 비밀번호가 올바르지 않습니다.")
+    except Exception as e:
+        st.error(f"로그인 오류: {e}")
 
 
 def _logout():
