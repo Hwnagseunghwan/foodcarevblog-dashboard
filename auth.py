@@ -10,9 +10,7 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 
 def _get_client():
-    url = st.secrets.get("SUPABASE_URL", SUPABASE_URL)
-    key = st.secrets.get("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
-    return create_client(url, key)
+    return create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 
 def require_login():
