@@ -5,9 +5,13 @@ import streamlit as st
 from supabase import create_client
 
 
+SUPABASE_URL = "https://nowapqtqyhtfkzkkvqei.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vd2FwcXRxeWh0Zmt6a2t2cWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MzMxNTQsImV4cCI6MjA4OTMwOTE1NH0.eZ1ro43sgNgj54Q5Y9l0MskZmuBdU1rJiAUztvGSWso"
+
+
 def _get_client():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_ANON_KEY"]
+    url = st.secrets.get("SUPABASE_URL", SUPABASE_URL)
+    key = st.secrets.get("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
     return create_client(url, key)
 
 
@@ -51,10 +55,7 @@ def _show_login():
 
 def _do_login(email, password):
     try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_ANON_KEY"]
-        st.info(f"URL: {url} | KEY 앞20자: {key[:20]}")
-        client = create_client(url, key)
+        client = _get_client()
         res = client.auth.sign_in_with_password({"email": email, "password": password})
         st.session_state["user"] = {
             "email": res.user.email,
