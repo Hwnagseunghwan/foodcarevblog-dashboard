@@ -43,11 +43,15 @@ st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()
     st.rerun()
+
+show_user_sidebar()
+
+st.sidebar.divider()
 if "collect_msg" in st.session_state:
     msg = st.session_state.pop("collect_msg")
     ok = st.session_state.pop("collect_ok", True)
     st.sidebar.success(msg) if ok else st.sidebar.error(msg)
-if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
+if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
     import subprocess, sys
     root = Path(__file__).parent.parent
     scrapers = [
@@ -69,8 +73,7 @@ if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
-
-show_user_sidebar()
+st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누리지 말아주세요.")
 
 st.title("🌱 Cle Seeding marketing 대시보드")
 
