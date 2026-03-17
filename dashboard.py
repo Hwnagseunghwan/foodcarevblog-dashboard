@@ -501,3 +501,21 @@ st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()
     st.rerun()
+if "collect_msg" in st.session_state:
+    msg = st.session_state.pop("collect_msg")
+    ok = st.session_state.pop("collect_ok", True)
+    st.sidebar.success(msg) if ok else st.sidebar.error(msg)
+if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
+    import subprocess, sys
+    root = Path(__file__).parent
+    scrapers = ["naver_scraper.py", "vola_scraper.py", "sheets_scraper.py", "seeding_scraper.py", "seeding_vola_scraper.py"]
+    errors = []
+    with st.spinner("전체 데이터 수집 중..."):
+        for script in scrapers:
+            r = subprocess.run([sys.executable, str(root / script)], cwd=str(root), capture_output=True)
+            if r.returncode != 0:
+                errors.append(script.replace("_scraper.py", ""))
+    st.session_state["collect_msg"] = ("오류: " + ", ".join(errors)) if errors else "✅ 전체 수집 완료!"
+    st.session_state["collect_ok"] = not bool(errors)
+    st.cache_data.clear()
+    st.rerun()
