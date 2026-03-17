@@ -22,8 +22,11 @@ st.set_page_config(
 )
 
 from dotenv import load_dotenv
+from auth import require_login, show_user_sidebar
 load_dotenv()
 BLOG_ID = os.environ.get("BLOG_ID", "nature_food")
+
+require_login()
 
 # 자동 생성 사이드바 네비게이션 숨기고 커스텀 링크로 교체
 st.markdown("""
@@ -527,3 +530,5 @@ if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
+
+show_user_sidebar()

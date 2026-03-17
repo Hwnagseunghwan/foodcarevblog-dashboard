@@ -1,0 +1,8 @@
+streamlit
+pandas
+altair
+gspread
+google-auth
+supabase
+python-dotenv
+openpyxl

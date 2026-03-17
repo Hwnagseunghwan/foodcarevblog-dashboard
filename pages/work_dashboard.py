@@ -3,12 +3,16 @@
 Cle 공식블로그 업무 대시보드
 """
 
+import sys
 import json
 import pandas as pd
 import streamlit as st
 import altair as alt
 from pathlib import Path
 from datetime import datetime
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from auth import require_login, show_user_sidebar
 
 DATA_FILE = "work_data.json"
 
@@ -17,6 +21,8 @@ st.set_page_config(
     page_icon="📋",
     layout="wide"
 )
+
+require_login()
 
 # 사이드바 커스텀 네비게이션
 st.markdown("""
@@ -62,6 +68,8 @@ if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
+
+show_user_sidebar()
 
 st.markdown("<a id='work-dashboard'></a>", unsafe_allow_html=True)
 st.title("📋 Work Dashboard")

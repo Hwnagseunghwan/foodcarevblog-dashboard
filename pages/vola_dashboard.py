@@ -4,12 +4,16 @@ VOLA 단축URL 클릭수 대시보드
 실행: streamlit run dashboard.py (멀티페이지 자동 인식)
 """
 
+import sys
 import json
 import pandas as pd
 import streamlit as st
 import altair as alt
 from pathlib import Path
 from datetime import datetime
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from auth import require_login, show_user_sidebar
 
 VOLA_FILE = "vola_clicks.json"
 
@@ -18,6 +22,8 @@ st.set_page_config(
     page_icon="🔗",
     layout="wide"
 )
+
+require_login()
 
 # 자동 생성 사이드바 네비게이션 숨기고 커스텀 링크로 교체
 st.markdown("""
@@ -357,3 +363,5 @@ if st.sidebar.button("🔄 전체 데이터 수집", use_container_width=True):
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
+
+show_user_sidebar()
