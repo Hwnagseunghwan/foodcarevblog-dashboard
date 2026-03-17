@@ -65,14 +65,22 @@ df["parsed_date"] = pd.to_datetime(df["date"].astype(str).str.strip(), format="%
 df["year_month"] = df["parsed_date"].dt.strftime("%Y-%m")
 df["week_label"] = df["parsed_date"].dt.strftime("%Y-W") + df["parsed_date"].dt.isocalendar().week.astype(str).str.zfill(2)
 
-# vola 컬럼 식별 (http로 시작하는 컬럼)
-vola_cols = [c for c in df.columns if str(c).strip().startswith("http")]
+# vola 컬럼 식별 (http 포함 또는 vo.la 포함 컬럼)
+skip_cols = {"year", "month", "week", "date", "parsed_date", "year_month", "week_label"}
+vola_cols = [
+    c for c in df.columns
+    if c not in skip_cols and ("http" in str(c).lower() or "vo.la" in str(c).lower())
+]
+# fallback: 날짜/메타 컬럼 제외한 나머지 숫자형 컬럼
+if not vola_cols:
+    meta_cols = {"year", "month", "week", "date", "비고", "비고 "}
+    vola_cols = [c for c in df.columns if c not in meta_cols and c not in skip_cols]
 
 # 컬럼명 → 라벨 매핑 (URL\n설명 → 설명만)
 col_to_label = {}
 for c in vola_cols:
     parts = str(c).split("\n")
-    col_to_label[c] = parts[1].strip() if len(parts) >= 2 else c
+    col_to_label[c] = parts[-1].strip() if len(parts) >= 2 else str(c).strip()
 
 # "-" → 0, 숫자 변환
 for c in vola_cols:
@@ -81,6 +89,12 @@ for c in vola_cols:
 
 # 라벨 컬럼명으로 rename한 복사본
 label_cols = list(col_to_label.values())
+
+if not label_cols:
+    st.error("클릭수 데이터 컬럼을 찾을 수 없습니다. 데이터를 확인해주세요.")
+    st.dataframe(df, use_container_width=True)
+    st.stop()
+
 df_labeled = df[["parsed_date", "year_month", "week_label"] + vola_cols].copy()
 df_labeled = df_labeled.rename(columns=col_to_label)
 df_labeled = df_labeled.dropna(subset=["parsed_date"])
