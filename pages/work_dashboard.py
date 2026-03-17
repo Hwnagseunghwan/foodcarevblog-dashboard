@@ -26,6 +26,8 @@ st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Dashboard")
 st.sidebar.page_link("pages/vola_dashboard.py", label="🔗 Vola Dashboard")
 st.sidebar.page_link("pages/work_dashboard.py", label="📋 Work Dashboard")
 st.sidebar.divider()
+st.sidebar.page_link("pages/seeding_dashboard.py", label="🌱 Seeding Work Dashboard")
+st.sidebar.divider()
 if st.sidebar.button("데이터 새로고침"):
     st.cache_data.clear()
     st.rerun()

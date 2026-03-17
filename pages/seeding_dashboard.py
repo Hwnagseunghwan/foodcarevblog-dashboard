@@ -1,0 +1,613 @@
+#!/usr/bin/env python3
+"""
+Cle Seeding Marketing 대시보드
+"""
+
+import json
+import pandas as pd
+import streamlit as st
+import altair as alt
+from pathlib import Path
+from datetime import datetime
+
+DATA_FILE = "seeding_data.json"
+
+st.set_page_config(
+    page_title="Seeding Work Dashboard",
+    page_icon="🌱",
+    layout="wide"
+)
+
+# 사이드바 커스텀 네비게이션
+st.markdown("""
+<style>[data-testid="stSidebarNav"] { display: none; }</style>
+""", unsafe_allow_html=True)
+st.sidebar.page_link("dashboard.py", label="📊 Cle Blog Dashboard")
+st.sidebar.page_link("pages/vola_dashboard.py", label="🔗 Vola Dashboard")
+st.sidebar.page_link("pages/work_dashboard.py", label="📋 Work Dashboard")
+st.sidebar.divider()
+st.sidebar.page_link("pages/seeding_dashboard.py", label="🌱 Seeding Work Dashboard")
+st.sidebar.divider()
+if st.sidebar.button("데이터 새로고침"):
+    st.cache_data.clear()
+    st.rerun()
+
+st.title("🌱 Cle Seeding marketing 대시보드")
+
+
+@st.cache_data(ttl=300)
+def load_data():
+    if not Path(DATA_FILE).exists():
+        return pd.DataFrame(), ""
+    with open(DATA_FILE, encoding="utf-8") as f:
+        raw = json.load(f)
+    df = pd.DataFrame(raw.get("rows", []))
+    updated_at = raw.get("updated_at", "")
+    return df, updated_at
+
+
+df, updated_at = load_data()
+
+if df.empty:
+    st.warning("데이터가 없습니다. seeding_scraper.py를 먼저 실행해주세요.")
+    st.stop()
+
+st.caption(f"마지막 업데이트: {updated_at}  |  전체 {len(df)}건")
+
+# ── 전처리 ──────────────────────────────────────────────────────
+def parse_date(row):
+    try:
+        raw = str(row["date"]).replace(" ", "").replace(".", "-").strip("-")
+        year = int(row["year"]) if row["year"] else datetime.now().year
+        parts = raw.split("-")
+        if len(parts) == 2:
+            return pd.Timestamp(f"{year}-{int(parts[0]):02d}-{int(parts[1]):02d}")
+    except:
+        pass
+    return pd.NaT
+
+df["parsed_date"] = df.apply(parse_date, axis=1)
+df["year_month"] = df["parsed_date"].dt.strftime("%Y-%m")
+df["week_label"] = df["parsed_date"].dt.strftime("%Y-W") + df["parsed_date"].dt.isocalendar().week.astype(str).str.zfill(2)
+
+df["검색량(M)"] = pd.to_numeric(df["검색량(M)"], errors="coerce").fillna(0)
+df["원고비용"] = pd.to_numeric(df["원고비용"], errors="coerce").fillna(0)
+df["작업비용"] = pd.to_numeric(df["작업비용"], errors="coerce").fillna(0)
+df["송출비용"] = pd.to_numeric(df["송출비용"], errors="coerce").fillna(0)
+df["총비용"] = df["원고비용"] + df["작업비용"] + df["송출비용"]
+df["노출여부"] = df["노출여부"].astype(str).str.strip()
+
+EXPOSED_VAL = ["O", "o", "Y", "y", "노출", "True", "TRUE", "1", "1.0"]
+
+# code 기준 중복 제거 → 원고 송출 단위
+dedup_cols = ["code", "담당자", "블로그명", "브랜드명", "제품", "소재명", "특이사항",
+              "year", "parsed_date", "year_month", "week_label", "week", "month",
+              "Blog_URL", "원고비용", "작업비용", "송출비용", "총비용",
+              "보라링크1", "보라링크2", "보라링크3"]
+dedup_cols = [c for c in dedup_cols if c in df.columns]
+df_dedup = df.drop_duplicates(subset=["code"])[dedup_cols].copy()
+
+tab_sent, tab_kw, tab_cost = st.tabs(["📨 원고 송출량", "🔑 키워드 노출량", "💰 비용 분석"])
+
+
+# ── 원고 송출량 ──────────────────────────────────────────────────
+with tab_sent:
+    df_sent = df_dedup.dropna(subset=["parsed_date"]).copy()
+
+    # 필터 (최상단)
+    col_f1, col_f2, col_f3 = st.columns(3)
+    f_writer = col_f1.selectbox("담당자 필터", ["전체"] + sorted(df_dedup["담당자"].dropna().unique().tolist()), key="sent_writer")
+    f_brand  = col_f2.selectbox("브랜드명 필터", ["전체"] + sorted(df_dedup["브랜드명"].dropna().unique().tolist()), key="sent_brand")
+    f_view   = col_f3.selectbox("단위", ["월별", "주간별", "일별"], key="sent_view")
+
+    df_f = df_sent.copy()
+    if f_writer != "전체":
+        df_f = df_f[df_f["담당자"] == f_writer]
+    if f_brand != "전체":
+        df_f = df_f[df_f["브랜드명"] == f_brand]
+
+    st.divider()
+
+    # 상단 요약 지표
+    total_sent = len(df_f)
+    kw_stats = df.groupby("code").agg(
+        키워드수=("키워드", "count"),
+        검색량합계=("검색량(M)", "sum")
+    ).reset_index()
+    avg_kw = df_f.merge(kw_stats, on="code", how="left")["키워드수"].mean()
+    avg_search = df_f.merge(kw_stats, on="code", how="left")["검색량합계"].mean()
+
+    col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+    col_s1.metric("총 원고 송출량", f"{total_sent}건")
+    writers = sorted(df_f["담당자"].dropna().unique())
+    for i, writer in enumerate(writers[:3]):
+        cnt = len(df_f[df_f["담당자"] == writer])
+        [col_s2, col_s3, col_s4][i].metric(f"{writer}", f"{cnt}건")
+
+    st.divider()
+
+    # 원고별 키워드/검색량 요약 테이블
+    st.subheader("원고 송출량 키워드 현황")
+    col_k1, col_k2 = st.columns(2)
+    col_k1.metric("원고당 평균 키워드 수", f"{avg_kw:.1f}개")
+    col_k2.metric("원고당 평균 검색량(M) 합계", f"{avg_search:,.0f}")
+
+    tbl = df_f[["code", "담당자", "블로그명", "브랜드명", "제품", "parsed_date"]].copy()
+    tbl = tbl.merge(kw_stats, on="code", how="left")
+    tbl["parsed_date"] = tbl["parsed_date"].dt.strftime("%Y-%m-%d").where(tbl["parsed_date"].notna(), "")
+    tbl.columns = ["code", "담당자", "블로그명", "브랜드명", "제품", "날짜", "키워드 수", "검색량(M) 합계"]
+    tbl = tbl.sort_values("날짜", ascending=False).reset_index(drop=True)
+
+    with st.expander("총 원고 송출량 상세 보기"):
+        st.dataframe(tbl, use_container_width=True, height=400)
+        csv_k = tbl.to_csv(index=False, encoding="utf-8-sig")
+        st.download_button("CSV 다운로드", data=csv_k, file_name="seeding_sent_kw.csv", mime="text/csv")
+
+    st.divider()
+
+    max_date = df_f["parsed_date"].max()
+
+    if f_view == "월별":
+        cutoff = max_date - pd.DateOffset(months=5)
+        df_view = df_f[df_f["parsed_date"] >= cutoff.replace(day=1)]
+        grp = df_view.groupby(["year_month", "담당자"]).size().reset_index(name="송출량")
+        grp_total = df_view.groupby("year_month").size().reset_index(name="송출량").sort_values("year_month")
+
+        st.subheader("월별 원고 송출량 (최근 6개월)")
+        bar = alt.Chart(grp.sort_values("year_month")).mark_bar().encode(
+            x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("송출량:Q", title="송출량"),
+            color=alt.Color("담당자:N", title="담당자"),
+            tooltip=["year_month", "담당자", "송출량"]
+        )
+        text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("송출량:Q"),
+            text=alt.Text("송출량:Q")
+        )
+        st.altair_chart(bar + text, use_container_width=True)
+
+        st.subheader("월별 브랜드별 송출량 (최근 6개월)")
+        grp_brand = df_view.groupby(["year_month", "브랜드명"]).size().reset_index(name="송출량")
+        grp_brand_total = df_view.groupby("year_month").size().reset_index(name="송출량").sort_values("year_month")
+        bar_b = alt.Chart(grp_brand.sort_values("year_month")).mark_bar().encode(
+            x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("송출량:Q", title="송출량"),
+            color=alt.Color("브랜드명:N", title="브랜드명"),
+            tooltip=["year_month", "브랜드명", "송출량"]
+        )
+        text_b = alt.Chart(grp_brand_total).mark_text(dy=-8, fontSize=11).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("송출량:Q"),
+            text=alt.Text("송출량:Q")
+        )
+        st.altair_chart(bar_b + text_b, use_container_width=True)
+
+    elif f_view == "주간별":
+        cutoff = max_date - pd.Timedelta(days=89)
+        df_view = df_f[df_f["parsed_date"] >= cutoff]
+        grp = df_view.groupby(["week_label", "담당자"]).size().reset_index(name="송출량")
+        grp_total = df_view.groupby("week_label").size().reset_index(name="송출량").sort_values("week_label")
+
+        st.subheader("주간별 원고 송출량 (최근 90일)")
+        bar = alt.Chart(grp.sort_values("week_label")).mark_bar().encode(
+            x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("송출량:Q", title="송출량"),
+            color=alt.Color("담당자:N", title="담당자"),
+            tooltip=["week_label", "담당자", "송출량"]
+        )
+        text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("송출량:Q"),
+            text=alt.Text("송출량:Q")
+        )
+        st.altair_chart(bar + text, use_container_width=True)
+
+    else:  # 일별
+        cutoff = max_date - pd.Timedelta(days=13)
+        df_view = df_f[df_f["parsed_date"] >= cutoff]
+        grp = df_view.groupby([df_view["parsed_date"].dt.strftime("%Y-%m-%d"), "담당자"]).size().reset_index(name="송출량")
+        grp.columns = ["date", "담당자", "송출량"]
+        grp_total = df_view.groupby(df_view["parsed_date"].dt.strftime("%Y-%m-%d")).size().reset_index(name="송출량")
+        grp_total.columns = ["date", "송출량"]
+        grp_total = grp_total.sort_values("date")
+
+        st.subheader("일별 원고 송출량 (최근 14일)")
+        bar = alt.Chart(grp.sort_values("date")).mark_bar().encode(
+            x=alt.X("date:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("송출량:Q", title="송출량"),
+            color=alt.Color("담당자:N", title="담당자"),
+            tooltip=["date", "담당자", "송출량"]
+        )
+        text = alt.Chart(grp_total).mark_text(dy=-8, fontSize=11).encode(
+            x=alt.X("date:N", sort=None),
+            y=alt.Y("송출량:Q"),
+            text=alt.Text("송출량:Q")
+        )
+        st.altair_chart(bar + text, use_container_width=True)
+
+    st.divider()
+
+    # 제품별 송출량
+    st.subheader("제품별 송출량")
+    grp_prod = df_f.groupby(["제품", "브랜드명"]).size().reset_index(name="송출량")
+    grp_prod = grp_prod.sort_values("송출량", ascending=False)
+    bar_p = alt.Chart(grp_prod).mark_bar().encode(
+        x=alt.X("송출량:Q", title="송출량"),
+        y=alt.Y("제품:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
+        color=alt.Color("브랜드명:N", title="브랜드명"),
+        tooltip=["제품", "브랜드명", "송출량"]
+    )
+    text_p = alt.Chart(grp_prod).mark_text(dx=5, fontSize=11, align="left").encode(
+        x=alt.X("송출량:Q"),
+        y=alt.Y("제품:N", sort="-x"),
+        text=alt.Text("송출량:Q")
+    )
+    st.altair_chart(bar_p + text_p, use_container_width=True)
+
+    st.divider()
+
+    with st.expander("원고 송출 원본 데이터 보기"):
+        show_cols = ["parsed_date", "담당자", "블로그명", "브랜드명", "제품", "소재명", "Blog_URL", "보라링크1", "보라링크2", "보라링크3"]
+        show_cols = [c for c in show_cols if c in df_f.columns]
+        show = df_f[show_cols].copy()
+        show["parsed_date"] = show["parsed_date"].dt.strftime("%Y-%m-%d")
+        show = show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
+        st.dataframe(
+            show,
+            use_container_width=True,
+            height=400,
+            column_config={
+                "Blog_URL": st.column_config.LinkColumn("Blog_URL", display_text="🔗 블로그"),
+                "보라링크1": st.column_config.LinkColumn("보라링크1", display_text="🔗 링크1"),
+                "보라링크2": st.column_config.LinkColumn("보라링크2", display_text="🔗 링크2"),
+                "보라링크3": st.column_config.LinkColumn("보라링크3", display_text="🔗 링크3"),
+            }
+        )
+        csv = show.to_csv(index=False, encoding="utf-8-sig")
+        st.download_button("CSV 다운로드", data=csv, file_name="seeding_sent.csv", mime="text/csv")
+
+
+# ── 키워드 노출량 ──────────────────────────────────────────────────
+with tab_kw:
+    df_kw = df.dropna(subset=["parsed_date"]).copy()
+    _code_str = df_kw["code"].astype(str).str.strip()
+    df_kw = df_kw[~_code_str.isin(["", "nan", "None", "코드없음", "#VALUE!"])]
+    df_kw["노출여부"] = df_kw["노출여부"].astype(str).str.strip()
+
+    # 필터 (최상단)
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    f_kw_brand   = col_f1.selectbox("브랜드 필터", ["전체"] + sorted(df_kw["브랜드명"].dropna().unique().tolist()), key="kw_brand")
+    f_kw_product = col_f2.selectbox("제품 필터", ["전체"] + sorted(df_kw["제품"].dropna().unique().tolist()), key="kw_product")
+    f_kw_exposed = col_f3.selectbox("노출여부 필터", ["전체", "노출", "미노출"], key="kw_exposed")
+    f_kw_view    = col_f4.selectbox("단위", ["월별", "주간별", "일별"], key="kw_view")
+
+    df_kf = df_kw.copy()
+    if f_kw_brand != "전체":
+        df_kf = df_kf[df_kf["브랜드명"] == f_kw_brand]
+    if f_kw_product != "전체":
+        df_kf = df_kf[df_kf["제품"] == f_kw_product]
+    if f_kw_exposed == "노출":
+        df_kf = df_kf[df_kf["노출여부"].isin(EXPOSED_VAL)]
+    elif f_kw_exposed == "미노출":
+        df_kf = df_kf[~df_kf["노출여부"].isin(EXPOSED_VAL)]
+
+    st.divider()
+
+    # 상단 지표
+    total_kw = len(df_kf)
+    total_search = df_kf["검색량(M)"].sum()
+    df_exposed = df_kf[df_kf["노출여부"].isin(EXPOSED_VAL)]
+    exposed_kw = len(df_exposed)
+    exposed_search = df_exposed["검색량(M)"].sum()
+    exposure_rate_kw = exposed_kw / total_kw * 100 if total_kw > 0 else 0
+
+    col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
+    col_k1.metric("총 키워드 수", f"{total_kw:,}개")
+    col_k2.metric("총 검색량(M) 합계", f"{total_search:,.0f}")
+    col_k3.metric("노출 키워드 수", f"{exposed_kw:,}개")
+    col_k4.metric("노출 검색량(M) 합계", f"{exposed_search:,.0f}")
+    col_k5.metric("키워드 노출률", f"{exposure_rate_kw:.1f}%")
+
+    st.divider()
+
+    max_kw_date = df_kf["parsed_date"].max()
+
+    if f_kw_view == "월별":
+        cutoff = max_kw_date - pd.DateOffset(months=5)
+        df_kv = df_kf[df_kf["parsed_date"] >= cutoff.replace(day=1)]
+
+        grp_kw = df_kv.groupby(["year_month", "브랜드명"]).agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum"),
+            노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+        ).reset_index()
+        grp_kw_total = df_kv.groupby("year_month").agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum")
+        ).reset_index().sort_values("year_month")
+        exposed_grp = df_kv[df_kv["노출여부"].isin(EXPOSED_VAL)].groupby("year_month").agg(
+            노출수=("키워드", "count"),
+            노출검색량=("검색량(M)", "sum")
+        ).reset_index()
+        grp_kw_total = grp_kw_total.merge(exposed_grp, on="year_month", how="left").fillna(0)
+
+        st.subheader("월별 키워드 수 (최근 6개월)")
+        bar_kw = alt.Chart(grp_kw.sort_values("year_month")).mark_bar().encode(
+            x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("키워드수:Q", title="키워드 수"),
+            color=alt.Color("브랜드명:N", title="브랜드"),
+            tooltip=["year_month", "브랜드명", "키워드수", "검색량합계", "노출수"]
+        )
+        text_kw = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("키워드수:Q"),
+            text=alt.Text("키워드수:Q")
+        )
+        line_exp_kw = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("노출수:Q"),
+            tooltip=["year_month", alt.Tooltip("노출수:Q", title="노출 키워드수")]
+        )
+        text_exp_kw = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("노출수:Q"),
+            text=alt.Text("노출수:Q")
+        )
+        st.altair_chart(bar_kw + text_kw + line_exp_kw + text_exp_kw, use_container_width=True)
+
+        st.subheader("월별 검색량(M) 합계 (최근 6개월)")
+        bar_sv = alt.Chart(grp_kw.sort_values("year_month")).mark_bar().encode(
+            x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
+            color=alt.Color("브랜드명:N", title="브랜드"),
+            tooltip=["year_month", "브랜드명", "검색량합계"]
+        )
+        text_sv = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("검색량합계:Q"),
+            text=alt.Text("검색량합계:Q", format=",")
+        )
+        line_exp_sv = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("노출검색량:Q"),
+            tooltip=["year_month", alt.Tooltip("노출검색량:Q", title="노출 검색량(M)", format=",")]
+        )
+        text_exp_sv = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
+            x=alt.X("year_month:N", sort=None),
+            y=alt.Y("노출검색량:Q"),
+            text=alt.Text("노출검색량:Q", format=",")
+        )
+        st.altair_chart(bar_sv + text_sv + line_exp_sv + text_exp_sv, use_container_width=True)
+
+    elif f_kw_view == "주간별":
+        cutoff = max_kw_date - pd.Timedelta(days=89)
+        df_kv = df_kf[df_kf["parsed_date"] >= cutoff]
+
+        grp_kw = df_kv.groupby(["week_label", "브랜드명"]).agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum"),
+            노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+        ).reset_index()
+        grp_kw_total = df_kv.groupby("week_label").agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum")
+        ).reset_index().sort_values("week_label")
+        exposed_grp = df_kv[df_kv["노출여부"].isin(EXPOSED_VAL)].groupby("week_label").agg(
+            노출수=("키워드", "count"),
+            노출검색량=("검색량(M)", "sum")
+        ).reset_index()
+        grp_kw_total = grp_kw_total.merge(exposed_grp, on="week_label", how="left").fillna(0)
+
+        st.subheader("주간별 키워드 수 (최근 90일)")
+        bar_kw = alt.Chart(grp_kw.sort_values("week_label")).mark_bar().encode(
+            x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("키워드수:Q", title="키워드 수"),
+            color=alt.Color("브랜드명:N", title="브랜드"),
+            tooltip=["week_label", "브랜드명", "키워드수", "검색량합계", "노출수"]
+        )
+        text_kw = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("키워드수:Q"),
+            text=alt.Text("키워드수:Q")
+        )
+        line_exp_kw = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("노출수:Q"),
+            tooltip=["week_label", alt.Tooltip("노출수:Q", title="노출 키워드수")]
+        )
+        text_exp_kw = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("노출수:Q"),
+            text=alt.Text("노출수:Q")
+        )
+        st.altair_chart(bar_kw + text_kw + line_exp_kw + text_exp_kw, use_container_width=True)
+
+        st.subheader("주간별 검색량(M) 합계 (최근 90일)")
+        bar_sv = alt.Chart(grp_kw.sort_values("week_label")).mark_bar().encode(
+            x=alt.X("week_label:N", sort=None, title="주차", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
+            color=alt.Color("브랜드명:N", title="브랜드"),
+            tooltip=["week_label", "브랜드명", "검색량합계"]
+        )
+        text_sv = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("검색량합계:Q"),
+            text=alt.Text("검색량합계:Q", format=",")
+        )
+        line_exp_sv = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("노출검색량:Q"),
+            tooltip=["week_label", alt.Tooltip("노출검색량:Q", title="노출 검색량(M)", format=",")]
+        )
+        text_exp_sv = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
+            x=alt.X("week_label:N", sort=None),
+            y=alt.Y("노출검색량:Q"),
+            text=alt.Text("노출검색량:Q", format=",")
+        )
+        st.altair_chart(bar_sv + text_sv + line_exp_sv + text_exp_sv, use_container_width=True)
+
+    else:  # 일별
+        cutoff = max_kw_date - pd.Timedelta(days=13)
+        df_kv = df_kf[df_kf["parsed_date"] >= cutoff].copy()
+        df_kv["date_str"] = df_kv["parsed_date"].dt.strftime("%Y-%m-%d")
+
+        grp_kw = df_kv.groupby(["date_str", "브랜드명"]).agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum"),
+            노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+        ).reset_index()
+        grp_kw_total = df_kv.groupby("date_str").agg(
+            키워드수=("키워드", "count"),
+            검색량합계=("검색량(M)", "sum")
+        ).reset_index().sort_values("date_str")
+        exposed_grp = df_kv[df_kv["노출여부"].isin(EXPOSED_VAL)].groupby("date_str").agg(
+            노출수=("키워드", "count"),
+            노출검색량=("검색량(M)", "sum")
+        ).reset_index()
+        grp_kw_total = grp_kw_total.merge(exposed_grp, on="date_str", how="left").fillna(0)
+
+        st.subheader("일별 키워드 수 (최근 14일)")
+        bar_kw = alt.Chart(grp_kw.sort_values("date_str")).mark_bar().encode(
+            x=alt.X("date_str:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("키워드수:Q", title="키워드 수"),
+            color=alt.Color("브랜드명:N", title="브랜드"),
+            tooltip=["date_str", "브랜드명", "키워드수", "검색량합계", "노출수"]
+        )
+        text_kw = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            x=alt.X("date_str:N", sort=None),
+            y=alt.Y("키워드수:Q"),
+            text=alt.Text("키워드수:Q")
+        )
+        line_exp_kw = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
+            x=alt.X("date_str:N", sort=None),
+            y=alt.Y("노출수:Q"),
+            tooltip=["date_str", alt.Tooltip("노출수:Q", title="노출 키워드수")]
+        )
+        text_exp_kw = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
+            x=alt.X("date_str:N", sort=None),
+            y=alt.Y("노출수:Q"),
+            text=alt.Text("노출수:Q")
+        )
+        st.altair_chart(bar_kw + text_kw + line_exp_kw + text_exp_kw, use_container_width=True)
+
+        st.subheader("일별 검색량(M) 합계 (최근 14일)")
+        bar_sv = alt.Chart(grp_kw.sort_values("date_str")).mark_bar().encode(
+            x=alt.X("date_str:N", sort=None, title="날짜", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("검색량합계:Q", title="검색량(M) 합계"),
+            color=alt.Color("브랜드명:N", title="브랜드"),
+            tooltip=["date_str", "브랜드명", "검색량합계"]
+        )
+        text_sv = alt.Chart(grp_kw_total).mark_text(dy=-18, fontSize=11).encode(
+            x=alt.X("date_str:N", sort=None),
+            y=alt.Y("검색량합계:Q"),
+            text=alt.Text("검색량합계:Q", format=",")
+        )
+        line_exp_sv = alt.Chart(grp_kw_total).mark_line(color="orange", strokeWidth=2, point=alt.OverlayMarkDef(color="orange", size=60)).encode(
+            x=alt.X("date_str:N", sort=None),
+            y=alt.Y("노출검색량:Q"),
+            tooltip=["date_str", alt.Tooltip("노출검색량:Q", title="노출 검색량(M)", format=",")]
+        )
+        text_exp_sv = alt.Chart(grp_kw_total).mark_text(dy=12, fontSize=11, color="darkorange").encode(
+            x=alt.X("date_str:N", sort=None),
+            y=alt.Y("노출검색량:Q"),
+            text=alt.Text("노출검색량:Q", format=",")
+        )
+        st.altair_chart(bar_sv + text_sv + line_exp_sv + text_exp_sv, use_container_width=True)
+
+    st.divider()
+
+    # 제품별 키워드/검색량/노출 현황
+    st.subheader("제품별 키워드 현황")
+    prod_grp = df_kf.groupby(["제품", "브랜드명"]).agg(
+        키워드수=("키워드", "count"),
+        검색량합계=("검색량(M)", "sum"),
+        노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
+    ).reset_index()
+    prod_grp["노출률"] = (prod_grp["노출수"] / prod_grp["키워드수"] * 100).round(1)
+    prod_grp = prod_grp.sort_values("키워드수", ascending=False).reset_index(drop=True)
+    st.dataframe(
+        prod_grp,
+        use_container_width=True,
+        height=min(50 + len(prod_grp) * 35, 400),
+        column_config={
+            "검색량합계": st.column_config.NumberColumn(format="%,.0f"),
+            "노출률": st.column_config.NumberColumn(format="%.1f%%"),
+        }
+    )
+
+    st.divider()
+
+    with st.expander("키워드 원본 데이터 보기"):
+        kw_show = df_kf[["parsed_date", "브랜드명", "제품", "메인/서브", "키워드", "검색량(M)", "노출여부", "최초순위", "Blog_URL"]].copy()
+        kw_show["parsed_date"] = kw_show["parsed_date"].dt.strftime("%Y-%m-%d")
+        kw_show = kw_show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
+        st.dataframe(
+            kw_show,
+            use_container_width=True,
+            height=400,
+            column_config={
+                "Blog_URL": st.column_config.LinkColumn("Blog_URL", display_text="🔗 블로그"),
+            }
+        )
+        csv_kw = kw_show.to_csv(index=False, encoding="utf-8-sig")
+        st.download_button("CSV 다운로드", data=csv_kw, file_name="seeding_keyword.csv", mime="text/csv")
+
+
+# ── 비용 분석 ──────────────────────────────────────────────────
+with tab_cost:
+    col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+    col_c1.metric("총 원고비용", f"{df['원고비용'].sum():,.0f}원")
+    col_c2.metric("총 작업비용", f"{df['작업비용'].sum():,.0f}원")
+    col_c3.metric("총 송출비용", f"{df['송출비용'].sum():,.0f}원")
+    col_c4.metric("총 비용 합계", f"{df['총비용'].sum():,.0f}원")
+
+    st.divider()
+
+    df_cost = df.dropna(subset=["parsed_date"]).copy()
+    if not df_cost.empty:
+        df_cost["year_month"] = df_cost["parsed_date"].dt.strftime("%Y-%m")
+        cost_monthly = df_cost.groupby("year_month")[["원고비용", "작업비용", "송출비용"]].sum().reset_index()
+        cost_monthly = cost_monthly.sort_values("year_month").tail(12)
+        cost_melted = cost_monthly.melt(id_vars="year_month", var_name="비용유형", value_name="금액")
+
+        st.subheader("월별 비용 현황")
+        bar_c = alt.Chart(cost_melted).mark_bar().encode(
+            x=alt.X("year_month:N", sort=None, title="월", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("금액:Q", title="금액(원)"),
+            color=alt.Color("비용유형:N", title="비용유형"),
+            tooltip=["year_month", "비용유형", "금액"]
+        )
+        st.altair_chart(bar_c, use_container_width=True)
+
+    st.divider()
+
+    st.subheader("원고유형별 비용 합계")
+    cost_type = df.groupby("원고유형")[["원고비용", "작업비용", "송출비용", "총비용"]].sum().reset_index()
+    cost_type = cost_type.sort_values("총비용", ascending=False)
+    st.dataframe(
+        cost_type,
+        use_container_width=True,
+        column_config={
+            "원고비용": st.column_config.NumberColumn(format="%,.0f원"),
+            "작업비용": st.column_config.NumberColumn(format="%,.0f원"),
+            "송출비용": st.column_config.NumberColumn(format="%,.0f원"),
+            "총비용": st.column_config.NumberColumn(format="%,.0f원"),
+        }
+    )
+
+    st.divider()
+
+    st.subheader("브랜드별 비용 합계")
+    cost_brand = df.groupby("브랜드명")[["원고비용", "작업비용", "송출비용", "총비용"]].sum().reset_index()
+    cost_brand = cost_brand.sort_values("총비용", ascending=False)
+    st.dataframe(
+        cost_brand,
+        use_container_width=True,
+        column_config={
+            "원고비용": st.column_config.NumberColumn(format="%,.0f원"),
+            "작업비용": st.column_config.NumberColumn(format="%,.0f원"),
+            "송출비용": st.column_config.NumberColumn(format="%,.0f원"),
+            "총비용": st.column_config.NumberColumn(format="%,.0f원"),
+        }
+    )
