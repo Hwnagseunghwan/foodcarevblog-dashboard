@@ -51,7 +51,10 @@ def _show_login():
 
 def _do_login(email, password):
     try:
-        client = _get_client()
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_ANON_KEY"]
+        st.info(f"URL: {url} | KEY 앞20자: {key[:20]}")
+        client = create_client(url, key)
         res = client.auth.sign_in_with_password({"email": email, "password": password})
         st.session_state["user"] = {
             "email": res.user.email,
