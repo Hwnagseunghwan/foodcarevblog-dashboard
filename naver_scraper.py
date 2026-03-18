@@ -54,13 +54,21 @@ async def save_cookies(context):
 
 
 async def is_logged_in(page):
-    await page.goto("https://www.naver.com", wait_until="domcontentloaded", timeout=15000)
+    """admin.blog.naver.com 접근 가능 여부로 실제 로그인 상태 확인"""
+    await page.goto(f"https://admin.blog.naver.com/{BLOG_ID}/stat/today",
+                    wait_until="domcontentloaded", timeout=20000)
     await asyncio.sleep(2)
-    login_btn = await page.query_selector(".link_login")
-    return login_btn is None
+    return "nidlogin" not in page.url
 
 
 async def login(page, context):
+    if not NAVER_ID or not NAVER_PW:
+        raise Exception(
+            "쿠키 만료 + NAVER_ID/NAVER_PW 미설정\n"
+            "해결방법:\n"
+            "  [로컬] naver_cookies.json을 최신 쿠키로 갱신하거나 .env에 NAVER_ID/NAVER_PW 설정\n"
+            "  [GitHub Actions] NAVER_COOKIES 시크릿을 최신 쿠키로 갱신"
+        )
     print("네이버 ID/PW 로그인 시도...")
     await page.goto("https://nid.naver.com/nidlogin.login", wait_until="domcontentloaded", timeout=30000)
     await asyncio.sleep(2)
@@ -99,7 +107,14 @@ async def fetch_stat_api(page, start_date: str) -> dict:
                 print(f"API 파싱 오류: {e}")
 
     page.on("response", on_response)
-    await page.goto(f"https://admin.blog.naver.com/{BLOG_ID}/stat/today")
+    await page.goto(f"https://admin.blog.naver.com/{BLOG_ID}/stat/today", timeout=30000)
+    await asyncio.sleep(2)
+
+    if "nidlogin" in page.url:
+        page.remove_listener("response", on_response)
+        print("⚠ admin 블로그 세션 만료 — 쿠키를 갱신하거나 NAVER_ID/NAVER_PW를 설정하세요")
+        return {}
+
     await asyncio.sleep(5)
     page.remove_listener("response", on_response)
     return result

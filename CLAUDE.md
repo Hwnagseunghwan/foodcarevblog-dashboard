@@ -133,8 +133,52 @@ df_kw = df_kw[~_code_str.isin(["", "nan", "None", "코드없음", "#VALUE!"])]
 
 ---
 
+## 배포 (Streamlit Community Cloud)
+- **URL**: https://foodcarevblog-dashboard.streamlit.app (GitHub 연동 자동 배포)
+- **GitHub**: https://github.com/Hwnagseunghwan/foodcarevblog-dashboard
+- **메인 파일**: `dashboard.py`
+- **Secrets 관리**: Streamlit Cloud > App settings > Secrets (`.streamlit/secrets.toml` 형식)
+
+---
+
+## 로그인 시스템 (auth.py — Supabase Auth)
+- **인증 방식**: Supabase 이메일/비밀번호 로그인
+- **Supabase URL**: `https://nowapqtqyhtfkzkkvqei.supabase.co`
+- `auth.py`에 URL·ANON_KEY 하드코딩 (secrets 폴백 이슈로)
+- `require_login()`: 미로그인 시 로그인 폼 표시 후 `st.stop()`
+- `show_user_sidebar()`: 사이드바 하단 이메일 + 로그아웃 버튼
+- 전체 5개 페이지 모두 `require_login()` 적용
+- 계정 없을 시 관리자에게 Supabase 초대 요청
+
+---
+
+## 멀티페이지 전체 구성 (최신)
+
+| 파일 | 사이드바 명칭 | 설명 |
+|---|---|---|
+| `dashboard.py` | 📊 Cle Blog Views | 네이버 블로그 조회수 |
+| `pages/overview_dashboard.py` | 📈 통합 성과 대시보드 | 블로그+VOLA+원고+비용 KPI |
+| `pages/vola_dashboard.py` | 🔗 Vola Dashboard | VOLA 단축URL 클릭수 |
+| `pages/work_dashboard.py` | 📋 Work Dashboard | Google Sheets 업무데이터 |
+| `pages/seeding_dashboard.py` | 📋 Cle Seeding Work Tracker | 시딩 업무데이터 |
+| `pages/seeding_vola_dashboard.py` | 🔗 Cle Seeding Vola Tracker | 시딩 VOLA 클릭수 |
+
+---
+
+## 통합 성과 대시보드 (pages/overview_dashboard.py)
+- 블로그 조회수 + VOLA 클릭수 + 원고 발행수 + 마케팅 비용 통합 KPI
+- 탭: 월별 / 주별 / 일별
+- 블로그 vs 시딩 기여도 파이차트
+- 마케팅 퍼널 효율 지표 (전환율, 클릭당 비용 등)
+- 자동 시사점 생성
+- 기간 선택기 포함
+- 사이드바 하단 전체 데이터 재수집 버튼 (경고 문구 포함)
+
+---
+
 ## 기술 스택
 - Python 3.11, Streamlit, Pandas, Altair
 - Playwright (네이버 스크래핑), requests (VOLA API)
 - gspread + google-auth (Google Sheets)
-- GitHub Actions (스케줄러)
+- supabase (로그인 인증)
+- GitHub Actions (스케줄러) + Streamlit Community Cloud (배포)
