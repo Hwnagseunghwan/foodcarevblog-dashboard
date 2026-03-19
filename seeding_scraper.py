@@ -41,6 +41,23 @@ def fetch_sheet_data() -> list[dict]:
     return records
 
 
+def fix_year(records: list[dict]) -> list[dict]:
+    """year 컬럼에 미래 연도가 잘못 입력된 경우 현재 연도로 보정"""
+    current_year = datetime.now().year
+    fixed = 0
+    for r in records:
+        try:
+            y = int(r.get("year", 0))
+            if y > current_year:
+                r["year"] = current_year
+                fixed += 1
+        except (ValueError, TypeError):
+            pass
+    if fixed:
+        print(f"year 보정: {fixed}건 → {current_year}으로 수정")
+    return records
+
+
 def main():
     print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 시딩 업무시트 수집 시작")
 
@@ -49,6 +66,7 @@ def main():
         return
 
     records = fetch_sheet_data()
+    records = fix_year(records)
 
     data = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
