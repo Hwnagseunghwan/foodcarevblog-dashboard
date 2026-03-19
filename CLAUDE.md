@@ -176,6 +176,24 @@ df_kw = df_kw[~_code_str.isin(["", "nan", "None", "코드없음", "#VALUE!"])]
 
 ---
 
+## Seeding Dashboard 버그 수정 (2026-03-19)
+
+### 일별 차트 시계열 정렬 오류 수정 (`pages/seeding_dashboard.py`)
+- **문제**: Altair `x=alt.X("date:N", sort=None)` → 날짜가 시계열 순서로 정렬되지 않음
+- **수정**: `_d_sort = sorted(grp["date"].unique().tolist())` 명시적 정렬 리스트 적용
+- 원고 송출량 일별 / 키워드 노출량 일별 차트 모두 적용
+
+### Seeding 스크래퍼 year 보정 로직 추가 (`seeding_scraper.py`)
+- **문제**: 스프레드시트 year 컬럼에 2027~2029 미래 연도 잘못 입력 → `max_date`가 미래가 되어 일별 14일 cutoff 계산이 깨짐 → 실제 데이터 전부 차트에서 제외됨
+- **수정**: `fix_year()` 함수 추가 — 현재 연도(datetime.now().year) 초과 시 자동 보정
+- 매일 수집 시 자동 적용됨
+
+### Seeding Vola Tracker 데이터 수집 누락
+- 원인: naver_scraper 실패 → Actions 전체 중단 (continue-on-error로 해결)
+- 수동 수집으로 최신 데이터 반영
+
+---
+
 ## 배포 (Streamlit Community Cloud)
 - **URL**: https://foodcarevblog-dashboard.streamlit.app (GitHub 연동 자동 배포)
 - **GitHub**: https://github.com/Hwnagseunghwan/foodcarevblog-dashboard
