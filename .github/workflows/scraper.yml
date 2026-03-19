@@ -29,6 +29,7 @@ jobs:
           playwright install chromium --with-deps
 
       - name: 블로그 조회수 수집 실행
+        continue-on-error: true
         env:
           NAVER_ID: ${{ secrets.NAVER_ID }}
           NAVER_PW: ${{ secrets.NAVER_PW }}
@@ -37,21 +38,25 @@ jobs:
         run: python naver_scraper.py
 
       - name: VOLA 클릭수 수집 실행
+        continue-on-error: true
         env:
           VOLA_API_KEY: ${{ secrets.VOLA_API_KEY }}
         run: python vola_scraper.py
 
       - name: 업무시트 수집 실행
+        continue-on-error: true
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: python sheets_scraper.py
 
       - name: 시딩 업무시트 수집 실행
+        continue-on-error: true
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: python seeding_scraper.py
 
       - name: 시딩 Vola 시트 수집 실행
+        continue-on-error: true
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: python seeding_vola_scraper.py
