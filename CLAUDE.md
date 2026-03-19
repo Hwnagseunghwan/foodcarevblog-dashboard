@@ -35,7 +35,7 @@
 
 ---
 
-## 자동 수집 (GitHub Actions - 매일 UTC 14:00 = KST 23:00)
+## 자동 수집 (GitHub Actions - 매일 UTC 15:10 = KST 00:10)
 
 ```yaml
 # .github/workflows/scraper.yml 수집 순서
@@ -130,6 +130,49 @@ df_kw = df_kw[~_code_str.isin(["", "nan", "None", "코드없음", "#VALUE!"])]
 - SPREADSHEET_ID: `1fyqDmq8lZG9GyaoSco7rFGCTxXnITTCVb-KQ-XBFKww`
 - SHEET_NAME: `공식블_업무시트`
 - 인증: `GOOGLE_CREDENTIALS` 환경변수 또는 `google_credentials.json` 파일
+
+---
+
+## 네이버 쿠키 갱신 (트리거: "네이버 쿠키교체")
+"네이버 쿠키교체"라고 하면 Claude가 아래 순서를 직접 실행:
+1. `PYTHONIOENCODING=utf-8 python C:/Claude_code/get_cookies.py` 실행
+2. 사용자가 브라우저에서 네이버 로그인 → 자동 감지 → `nature_food_cookies.json` 저장
+3. `nature_food_cookies.json` → `naver_cookies.json` 복사
+4. `naver_scraper.py` 실행으로 수집 테스트
+5. 변경된 파일 커밋 & 푸시
+6. `gh secret set NAVER_COOKIES --repo Hwnagseunghwan/foodcarevblog-dashboard --body "$(cat C:/Claude_code/nature_food_cookies.json)"` 실행
+
+### get_cookies.py 동작 방식 (2026-03-18 수정)
+- 기존: `input()` 대기 → Claude Code 환경에서 EOFError 발생
+- 수정: 최대 120초간 1초 간격으로 `page.url` 폴링 → `nidlogin` 벗어나면 로그인 완료 감지
+- 저장 위치: `C:/Claude_code/nature_food_cookies.json`
+
+### naver_scraper.py 버그 수정 내용 (2026-03-18)
+- **문제**: `is_logged_in()`이 `naver.com`만 체크 → admin 세션 만료를 못 감지 → `fetch_stat_api`가 빈 dict 반환하며 조용히 실패
+- **수정 1**: `is_logged_in()` → `admin.blog.naver.com/stat/today` 접근 후 URL에 `nidlogin` 포함 여부로 판단
+- **수정 2**: `fetch_stat_api()` → 페이지 이동 후 `nidlogin` 감지 시 즉시 반환 + 경고 출력
+- **수정 3**: `login()` → `NAVER_ID`/`NAVER_PW` 미설정 시 해결방법 포함한 명확한 예외 발생
+
+### 로컬 .env 자동 로그인 설정 (2026-03-19)
+- `C:/foodcarevblog-dashboard/.env` 생성 (gitignore 적용 중)
+- NAVER_ID / NAVER_PW 포함 → 쿠키 만료 시 자동 재로그인 후 쿠키 재저장
+- 앞으로 로컬 실행 시 수동 쿠키교체 불필요
+
+---
+
+## GitHub Actions 안정화 (2026-03-19)
+
+### continue-on-error 추가
+- **문제**: 하나의 스크래퍼가 실패하면 이후 모든 스크래퍼가 실행되지 않음
+- **수정**: 모든 스크래퍼 step에 `continue-on-error: true` 추가
+- naver_scraper 실패 → vola_scraper, sheets_scraper 등은 계속 실행됨
+
+---
+
+## VOLA Dashboard 일별 현황 시작일 (2026-03-19)
+- `pages/vola_dashboard.py` 기본 시작일 `"2026-03-18"` 고정 (기존: 최근 14일 자동 계산)
+- 해당 날짜 데이터 없어도 오류 없이 이후 날짜부터 표시
+- 하단 시작일 선택기로 사용자 변경 가능
 
 ---
 
