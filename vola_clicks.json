@@ -610,7 +610,7 @@
         "shorturl": "https://vo.la/cKU5Ggu",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/103",
         "title": "초기 2",
-        "total_clicks": 204,
+        "total_clicks": 208,
         "created_at": "2026-01-21"
       },
       "hgLf09x": {
@@ -634,7 +634,7 @@
         "shorturl": "https://vo.la/EJDpgol",
         "longurl": "https://www.foodcare-cle.com/event/eventDetail/630",
         "title": "신규회원 혜택",
-        "total_clicks": 277,
+        "total_clicks": 279,
         "created_at": "2026-01-20"
       },
       "q4aCxhI": {
@@ -642,7 +642,7 @@
         "shorturl": "https://vo.la/q4aCxhI",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/104",
         "title": "중기",
-        "total_clicks": 164,
+        "total_clicks": 166,
         "created_at": "2026-01-20"
       },
       "V6UHvpb": {
@@ -1266,8 +1266,8 @@
         "shorturl": "https://vo.la/cKU5Ggu",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/103",
         "created_at": "2026-01-21",
-        "daily_clicks": 204,
-        "total_clicks": 204
+        "daily_clicks": 208,
+        "total_clicks": 208
       },
       "hgLf09x": {
         "title": "프로틴퓨레 3종",
@@ -1290,16 +1290,16 @@
         "shorturl": "https://vo.la/EJDpgol",
         "longurl": "https://www.foodcare-cle.com/event/eventDetail/630",
         "created_at": "2026-01-20",
-        "daily_clicks": 277,
-        "total_clicks": 277
+        "daily_clicks": 279,
+        "total_clicks": 279
       },
       "q4aCxhI": {
         "title": "중기",
         "shorturl": "https://vo.la/q4aCxhI",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/104",
         "created_at": "2026-01-20",
-        "daily_clicks": 164,
-        "total_clicks": 164
+        "daily_clicks": 166,
+        "total_clicks": 166
       },
       "V6UHvpb": {
         "title": "초기 1",
