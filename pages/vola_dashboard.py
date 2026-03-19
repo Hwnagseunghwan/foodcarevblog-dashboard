@@ -144,7 +144,7 @@ else:
     with tab1:
         # 시작일 선택 반영
         date_options = sorted(df_all["date"].dt.strftime("%Y-%m-%d").unique().tolist())
-        default_start = date_options[-14] if len(date_options) >= 14 else date_options[0]
+        default_start = "2026-03-18"
         daily_start = st.session_state.get("vola_daily_start", default_start)
 
         recent_dates = [d for d in date_options if d >= daily_start][:14]
@@ -211,10 +211,12 @@ else:
         # 시작일 선택 폼
         with st.form("vola_daily_selector"):
             col1, col2 = st.columns([2, 1])
+            _sel = st.session_state.get("vola_daily_start", default_start)
+            _sel_idx = date_options.index(_sel) if _sel in date_options else next((i for i, d in enumerate(date_options) if d >= _sel), 0)
             selected = col1.selectbox(
                 "📋 일별 현황 시작일 선택",
                 options=date_options,
-                index=date_options.index(st.session_state.get("vola_daily_start", default_start)),
+                index=_sel_idx,
                 help="선택한 날부터 이후 14일을 위 차트에 표시합니다."
             )
             col2.markdown("<br>", unsafe_allow_html=True)
