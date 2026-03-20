@@ -52,23 +52,42 @@ if "collect_msg" in st.session_state:
     ok = st.session_state.pop("collect_ok", True)
     st.sidebar.success(msg) if ok else st.sidebar.error(msg)
 if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
-    import subprocess
+    import importlib.util, os
+
+    # Streamlit secrets → os.environ 주입 (subprocess 없이 직접 호출 시에도 동일하게 적용)
+    try:
+        for k, v in st.secrets.items():
+            if isinstance(v, str) and k not in os.environ:
+                os.environ[k] = v
+    except Exception:
+        pass
+
     scrapers = [
-        ("📊 블로그 조회수", "naver_scraper.py"),
-        ("🔗 Vola 클릭수", "vola_scraper.py"),
-        ("📋 Blog 업무시트", "sheets_scraper.py"),
+        ("🔗 Vola 클릭수",      "vola_scraper.py"),
+        ("📋 Blog 업무시트",    "sheets_scraper.py"),
         ("🌱 Seeding 업무시트", "seeding_scraper.py"),
-        ("🔗 Seeding Vola", "seeding_vola_scraper.py"),
+        ("🔗 Seeding Vola",     "seeding_vola_scraper.py"),
     ]
+
     status_box = st.sidebar.empty()
     errors = []
-    for label, script in scrapers:
-        status_box.info(f"⏳ {label} 수집 중...")
-        r = subprocess.run([sys.executable, str(ROOT / script)], cwd=str(ROOT), capture_output=True)
-        if r.returncode != 0:
-            errors.append(label)
+    prev_dir = os.getcwd()
+    try:
+        os.chdir(str(ROOT))
+        for label, script in scrapers:
+            status_box.info(f"⏳ {label} 수집 중...")
+            try:
+                spec = importlib.util.spec_from_file_location("_scraper_mod", ROOT / script)
+                mod  = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                mod.main()
+            except Exception as e:
+                errors.append(f"{label}: {str(e)[:120]}")
+    finally:
+        os.chdir(prev_dir)
+
     status_box.empty()
-    st.session_state["collect_msg"] = ("오류: " + ", ".join(errors)) if errors else "✅ 전체 수집 완료!"
+    st.session_state["collect_msg"] = ("오류:\n" + "\n".join(errors)) if errors else "✅ 전체 수집 완료!"
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
