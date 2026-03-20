@@ -9,7 +9,7 @@
 import os
 import json
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
@@ -203,8 +203,10 @@ def print_summary(data: dict):
 
 
 async def main():
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 네이버 블로그 조회수 수집 시작")
+    KST = timezone(timedelta(hours=9))
+    now_kst = datetime.now(KST)
+    yesterday = (now_kst - timedelta(days=1)).strftime("%Y-%m-%d")
+    print(f"\n[{now_kst.strftime('%Y-%m-%d %H:%M:%S')} KST] 네이버 블로그 조회수 수집 시작")
     print(f"수집 기간: {START_DATE} ~ {yesterday}")
 
     async with async_playwright() as p:
