@@ -516,6 +516,7 @@ if "collect_msg" in st.session_state:
     st.sidebar.success(msg) if ok else st.sidebar.error(msg)
 if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
     import importlib.util, os
+    _root = Path(__file__).parent
     try:
         for k, v in st.secrets.items():
             if isinstance(v, str) and k not in os.environ:
@@ -523,6 +524,7 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
     except Exception:
         pass
     scrapers = [
+        ("📊 Blog 조회수",      "naver_scraper.py"),
         ("🔗 Vola 클릭수",      "vola_scraper.py"),
         ("📋 Blog 업무시트",    "sheets_scraper.py"),
         ("🌱 Seeding 업무시트", "seeding_scraper.py"),
@@ -532,11 +534,11 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
     errors = []
     prev_dir = os.getcwd()
     try:
-        os.chdir(str(root))
+        os.chdir(str(_root))
         for label, script in scrapers:
             status_box.info(f"⏳ {label} 수집 중...")
             try:
-                spec = importlib.util.spec_from_file_location("_scraper_mod", root / script)
+                spec = importlib.util.spec_from_file_location("_scraper_mod", _root / script)
                 mod  = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 mod.main()
