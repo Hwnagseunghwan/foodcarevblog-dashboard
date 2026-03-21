@@ -6,3 +6,4 @@ google-auth
 supabase
 python-dotenv
 openpyxl
+requests

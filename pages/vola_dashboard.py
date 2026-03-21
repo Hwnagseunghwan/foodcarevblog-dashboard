@@ -352,12 +352,14 @@ if "collect_msg" in st.session_state:
 if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
     import importlib.util, os
     _root = Path(__file__).parent.parent
-    try:
-        for k, v in st.secrets.items():
-            if isinstance(v, str) and k not in os.environ:
-                os.environ[k] = v
-    except Exception:
-        pass
+    import json as _json
+    for _k in ["GOOGLE_CREDENTIALS", "VOLA_API_KEY", "NAVER_COOKIES", "NAVER_ID", "NAVER_PW", "BLOG_ID"]:
+        try:
+            if _k not in os.environ:
+                _v = st.secrets[_k]
+                os.environ[_k] = _json.dumps(dict(_v)) if hasattr(_v, "items") else str(_v)
+        except Exception:
+            pass
     scrapers = [
         ("📊 Blog 조회수",      "naver_scraper.py"),
         ("🔗 Vola 클릭수",      "vola_scraper.py"),
