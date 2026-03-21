@@ -515,14 +515,24 @@ if "collect_msg" in st.session_state:
     ok = st.session_state.pop("collect_ok", True)
     st.sidebar.success(msg) if ok else st.sidebar.error(msg)
 if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
-    import importlib.util, os
+    import importlib.util, os, json as _json
     _root = Path(__file__).parent
-    import json as _json
-    for _k in ["GOOGLE_CREDENTIALS", "VOLA_API_KEY", "NAVER_COOKIES", "NAVER_ID", "NAVER_PW", "BLOG_ID"]:
+    try:
+        _gc = st.secrets["GOOGLE_CREDENTIALS"]
+        _gc_str = _json.dumps(dict(_gc)) if hasattr(_gc, "items") else str(_gc)
+        with open(_root / "google_credentials.json", "w") as _f:
+            _f.write(_gc_str)
+    except Exception:
+        pass
+    try:
+        _nc = str(st.secrets["NAVER_COOKIES"])
+        with open(_root / "naver_cookies.json", "w") as _f:
+            _f.write(_nc)
+    except Exception:
+        pass
+    for _k in ["VOLA_API_KEY", "BLOG_ID", "NAVER_ID", "NAVER_PW"]:
         try:
-            if _k not in os.environ:
-                _v = st.secrets[_k]
-                os.environ[_k] = _json.dumps(dict(_v)) if hasattr(_v, "items") else str(_v)
+            os.environ[_k] = str(st.secrets[_k])
         except Exception:
             pass
     scrapers = [

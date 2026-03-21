@@ -21,15 +21,8 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
 def get_credentials():
-    """서비스 계정 인증 (환경변수 → st.secrets → 파일 순서로 시도)"""
+    """서비스 계정 인증 (환경변수 또는 파일)"""
     creds_env = os.environ.get("GOOGLE_CREDENTIALS")
-    if not creds_env:
-        try:
-            import streamlit as st
-            val = st.secrets["GOOGLE_CREDENTIALS"]
-            creds_env = json.dumps(dict(val)) if hasattr(val, "items") else str(val)
-        except Exception:
-            pass
     if creds_env:
         info = json.loads(creds_env)
         return Credentials.from_service_account_info(info, scopes=SCOPES)
