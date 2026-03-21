@@ -191,17 +191,17 @@ def main():
 
     new_data = {}
 
-    # 1차: requests 방식
+    # 1차: requests 방식 (API는 yesterday를 endDate로 사용 → 최근 15일치 반환)
     try:
         print("requests 방식으로 수집 시도...")
-        new_data = fetch_stat_api_requests(START_DATE)
+        new_data = fetch_stat_api_requests(yesterday)
         print(f"requests 수집 성공: {len(new_data)}일치")
     except Exception as e:
         print(f"requests 실패: {e}")
         # 2차: Playwright fallback
         try:
             print("Playwright 방식으로 재시도...")
-            new_data = asyncio.run(_fetch_stat_playwright(START_DATE))
+            new_data = asyncio.run(_fetch_stat_playwright(yesterday))
             print(f"Playwright 수집 성공: {len(new_data)}일치")
         except Exception as e2:
             print(f"Playwright 실패: {e2}")
