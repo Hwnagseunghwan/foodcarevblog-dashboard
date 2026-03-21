@@ -380,9 +380,7 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
     finally:
         os.chdir(prev_dir)
     status_box.empty()
-    st.session_state["collect_msg"] = ("오류:
-" + "
-".join(errors)) if errors else "전체 수집 완료!"
+    st.session_state["collect_msg"] = ("오류: " + ", ".join(errors)) if errors else "전체 수집 완료!"
     st.session_state["collect_ok"] = not bool(errors)
     st.cache_data.clear()
     st.rerun()
