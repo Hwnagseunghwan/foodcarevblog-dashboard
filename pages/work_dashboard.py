@@ -57,11 +57,12 @@ st.title("📋 Work Dashboard")
 
 @st.cache_data(ttl=300)
 def load_data() -> pd.DataFrame:
-    if not Path(DATA_FILE).exists():
-        return pd.DataFrame()
-    with open(DATA_FILE, encoding="utf-8") as f:
-        raw = json.load(f)
-    df = pd.DataFrame(raw["rows"])
+    from data_loader import load_json
+    try:
+        raw = load_json(DATA_FILE)
+    except Exception:
+        return pd.DataFrame(), ""
+    df = pd.DataFrame(raw.get("rows", []))
     updated_at = raw.get("updated_at", "")
     return df, updated_at
 

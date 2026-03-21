@@ -50,12 +50,14 @@ st.title(f"📊 Cle 공식블로그 조회수 대시보드({BLOG_ID})")
 st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
 
+from data_loader import load_json
+
 @st.cache_data(ttl=300)
 def load_daily_data():
-    if not Path(DATA_FILE).exists():
+    try:
+        raw = load_json(DATA_FILE)
+    except Exception:
         return pd.DataFrame()
-    with open(DATA_FILE, encoding="utf-8") as f:
-        raw = json.load(f)
     df = pd.DataFrame(list(raw.items()), columns=["date", "views"])
     df["date"] = pd.to_datetime(df["date"])
     df["views"] = pd.to_numeric(df["views"], errors="coerce").fillna(0).astype(int)
@@ -65,10 +67,10 @@ def load_daily_data():
 
 @st.cache_data(ttl=300)
 def load_monthly_data():
-    if not Path(MONTHLY_FILE).exists():
+    try:
+        raw = load_json(MONTHLY_FILE)
+    except Exception:
         return pd.DataFrame()
-    with open(MONTHLY_FILE, encoding="utf-8") as f:
-        raw = json.load(f)
     df = pd.DataFrame(list(raw.items()), columns=["month", "views"])
     df["month"] = pd.to_datetime(df["month"])
     df["views"] = pd.to_numeric(df["views"], errors="coerce").fillna(0).astype(int)

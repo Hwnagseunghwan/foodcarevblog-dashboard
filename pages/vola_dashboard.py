@@ -49,10 +49,11 @@ st.caption(f"마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 @st.cache_data(ttl=300)
 def load_vola_data():
-    if not Path(VOLA_FILE).exists():
+    from data_loader import load_json
+    try:
+        return load_json(VOLA_FILE)
+    except Exception:
         return {}
-    with open(VOLA_FILE, encoding="utf-8") as f:
-        return json.load(f)
 
 
 vola = load_vola_data()

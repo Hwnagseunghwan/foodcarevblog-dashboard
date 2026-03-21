@@ -56,11 +56,11 @@ st.title("🔗 Cle Seeding Vola Tracker")
 
 @st.cache_data(ttl=300)
 def load_data(data_file):
-    path = Path(__file__).parent.parent / data_file
-    if not path.exists():
+    from data_loader import load_json
+    try:
+        raw = load_json(data_file)
+    except Exception:
         return pd.DataFrame(), ""
-    with open(path, encoding="utf-8") as f:
-        raw = json.load(f)
     df = pd.DataFrame(raw.get("rows", []))
     updated_at = raw.get("updated_at", "")
     return df, updated_at
