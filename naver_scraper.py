@@ -27,11 +27,18 @@ START_DATE  = "2026-03-01"
 # ── 쿠키 로드 ──────────────────────────────────────────────────────
 
 def load_cookie_list() -> list:
-    """환경변수 또는 파일에서 쿠키 목록 반환"""
+    """환경변수 → st.secrets → 파일 순서로 쿠키 로드"""
     cookie_env = os.environ.get("NAVER_COOKIES")
+    if not cookie_env:
+        try:
+            import streamlit as st
+            val = st.secrets["NAVER_COOKIES"]
+            cookie_env = str(val)
+        except Exception:
+            pass
     if cookie_env:
         cookies = json.loads(cookie_env)
-        print(f"환경변수에서 쿠키 로드: {len(cookies)}개")
+        print(f"쿠키 로드: {len(cookies)}개")
         return cookies
     if Path(COOKIE_FILE).exists():
         with open(COOKIE_FILE) as f:
