@@ -47,31 +47,8 @@ if st.sidebar.button("데이터 새로고침"):
 show_user_sidebar()
 
 st.sidebar.divider()
-if "collect_msg" in st.session_state:
-    msg = st.session_state.pop("collect_msg")
-    ok = st.session_state.pop("collect_ok", True)
-    st.sidebar.success(msg) if ok else st.sidebar.error(msg)
-if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
-    import requests as _req
-    try:
-        _pat = st.secrets["GITHUB_PAT"]
-        _resp = _req.post(
-            "https://api.github.com/repos/Hwnagseunghwan/foodcarevblog-dashboard/actions/workflows/scraper.yml/dispatches",
-            headers={"Authorization": f"Bearer {_pat}", "Accept": "application/vnd.github+json"},
-            json={"ref": "master"},
-            timeout=10,
-        )
-        if _resp.status_code == 204:
-            st.session_state["collect_msg"] = "✅ 수집 시작! 약 3분 후 '데이터 새로고침' 버튼을 눌러주세요."
-            st.session_state["collect_ok"] = True
-        else:
-            st.session_state["collect_msg"] = f"오류: GitHub API {_resp.status_code} - {_resp.text[:100]}"
-            st.session_state["collect_ok"] = False
-    except Exception as _e:
-        st.session_state["collect_msg"] = f"오류: {str(_e)[:150]}"
-        st.session_state["collect_ok"] = False
-    st.rerun()
-st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누르지 마세요.")
+st.sidebar.link_button("🔄 전체 데이터 재수집", "https://github.com/Hwnagseunghwan/foodcarevblog-dashboard/actions/workflows/scraper.yml", use_container_width=True)
+st.sidebar.caption("클릭 후 'Run workflow' → 3분 후 데이터 새로고침")
 
 
 # ── 데이터 로드 ──────────────────────────────────────────────────
