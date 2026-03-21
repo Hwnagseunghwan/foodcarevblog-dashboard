@@ -55,6 +55,12 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
     import importlib.util, os, json as _json
     _root = Path(__file__).parent.parent
     errors = []
+    # 진단: secrets에 있는 키 목록 표시
+    try:
+        _all_keys = list(st.secrets.keys())
+        errors.append(f"[진단] secrets keys: {_all_keys}")
+    except Exception as _ke:
+        errors.append(f"[진단] secrets 접근 불가: {_ke}")
     def _to_dict(obj):
         if hasattr(obj, "items"):
             return {k: _to_dict(v) for k, v in obj.items()}
