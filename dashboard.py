@@ -515,58 +515,23 @@ if "collect_msg" in st.session_state:
     ok = st.session_state.pop("collect_ok", True)
     st.sidebar.success(msg) if ok else st.sidebar.error(msg)
 if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
-    import importlib.util, os, json as _json
-    _root = Path(__file__).parent
-    errors = []
-    def _to_dict(obj):
-        if hasattr(obj, "items"):
-            return {k: _to_dict(v) for k, v in obj.items()}
-        return obj
+    import requests as _req
     try:
-        _gc = st.secrets["GOOGLE_CREDENTIALS"]
-        _gc_str = _json.dumps(_to_dict(_gc)) if hasattr(_gc, "items") else str(_gc)
-        os.environ["GOOGLE_CREDENTIALS"] = _gc_str
-        with open(_root / "google_credentials.json", "w") as _f:
-            _f.write(_gc_str)
+        _pat = st.secrets["GITHUB_PAT"]
+        _resp = _req.post(
+            "https://api.github.com/repos/Hwnagseunghwan/foodcarevblog-dashboard/actions/workflows/scraper.yml/dispatches",
+            headers={"Authorization": f"Bearer {_pat}", "Accept": "application/vnd.github+json"},
+            json={"ref": "master"},
+            timeout=10,
+        )
+        if _resp.status_code == 204:
+            st.session_state["collect_msg"] = "✅ 수집 시작! 약 3분 후 '데이터 새로고침' 버튼을 눌러주세요."
+            st.session_state["collect_ok"] = True
+        else:
+            st.session_state["collect_msg"] = f"오류: GitHub API {_resp.status_code} - {_resp.text[:100]}"
+            st.session_state["collect_ok"] = False
     except Exception as _e:
-        errors.append(f"[설정] GOOGLE_CREDENTIALS: {str(_e)[:80]}")
-    try:
-        _nc = str(st.secrets["NAVER_COOKIES"])
-        os.environ["NAVER_COOKIES"] = _nc
-        with open(_root / "naver_cookies.json", "w") as _f:
-            _f.write(_nc)
-    except Exception:
-        pass
-    for _k in ["VOLA_API_KEY", "BLOG_ID", "NAVER_ID", "NAVER_PW"]:
-        try:
-            os.environ[_k] = str(st.secrets[_k])
-        except Exception:
-            pass
-    scrapers = [
-        ("📊 Blog 조회수",      "naver_scraper.py"),
-        ("🔗 Vola 클릭수",      "vola_scraper.py"),
-        ("📋 Blog 업무시트",    "sheets_scraper.py"),
-        ("🌱 Seeding 업무시트", "seeding_scraper.py"),
-        ("🔗 Seeding Vola",     "seeding_vola_scraper.py"),
-    ]
-    status_box = st.sidebar.empty()
-    prev_dir = os.getcwd()
-    try:
-        os.chdir(str(_root))
-        for label, script in scrapers:
-            status_box.info(f"⏳ {label} 수집 중...")
-            try:
-                spec = importlib.util.spec_from_file_location("_scraper_mod", _root / script)
-                mod  = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
-                mod.main()
-            except Exception as e:
-                errors.append(f"{label}: {str(e)[:120]}")
-    finally:
-        os.chdir(prev_dir)
-    status_box.empty()
-    st.session_state["collect_msg"] = ("오류: " + ", ".join(errors)) if errors else "전체 수집 완료!"
-    st.session_state["collect_ok"] = not bool(errors)
-    st.cache_data.clear()
+        st.session_state["collect_msg"] = f"오류: {str(_e)[:150]}"
+        st.session_state["collect_ok"] = False
     st.rerun()
 st.sidebar.caption("⚠️ 관리자외 전체 데이터재수집 버튼을 누르지 마세요.")
