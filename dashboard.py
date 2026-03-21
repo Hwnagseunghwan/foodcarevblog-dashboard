@@ -517,15 +517,22 @@ if "collect_msg" in st.session_state:
 if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True):
     import importlib.util, os, json as _json
     _root = Path(__file__).parent
+    errors = []
+    def _to_dict(obj):
+        if hasattr(obj, "items"):
+            return {k: _to_dict(v) for k, v in obj.items()}
+        return obj
     try:
         _gc = st.secrets["GOOGLE_CREDENTIALS"]
-        _gc_str = _json.dumps(dict(_gc)) if hasattr(_gc, "items") else str(_gc)
+        _gc_str = _json.dumps(_to_dict(_gc)) if hasattr(_gc, "items") else str(_gc)
+        os.environ["GOOGLE_CREDENTIALS"] = _gc_str
         with open(_root / "google_credentials.json", "w") as _f:
             _f.write(_gc_str)
-    except Exception:
-        pass
+    except Exception as _e:
+        errors.append(f"[설정] GOOGLE_CREDENTIALS: {str(_e)[:80]}")
     try:
         _nc = str(st.secrets["NAVER_COOKIES"])
+        os.environ["NAVER_COOKIES"] = _nc
         with open(_root / "naver_cookies.json", "w") as _f:
             _f.write(_nc)
     except Exception:
@@ -543,7 +550,6 @@ if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True
         ("🔗 Seeding Vola",     "seeding_vola_scraper.py"),
     ]
     status_box = st.sidebar.empty()
-    errors = []
     prev_dir = os.getcwd()
     try:
         os.chdir(str(_root))
