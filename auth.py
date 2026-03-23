@@ -32,6 +32,44 @@ def show_user_sidebar():
         _logout()
 
 
+def show_collect_button():
+    """사이드바에 전체 데이터 재수집 버튼 표시 (GitHub Actions workflow 트리거)"""
+    import requests as req
+    import os
+
+    st.sidebar.divider()
+    if st.sidebar.button("🔄 전체 데이터 재수집", use_container_width=True, key="collect_btn"):
+        token = None
+        try:
+            token = st.secrets.get("GITHUB_PAT")
+        except Exception:
+            pass
+        if not token:
+            token = os.environ.get("GITHUB_PAT")
+
+        if not token:
+            st.sidebar.error("Streamlit secrets에 GITHUB_PAT 설정이 필요합니다.")
+        else:
+            try:
+                resp = req.post(
+                    "https://api.github.com/repos/Hwnagseunghwan/foodcarevblog-dashboard"
+                    "/actions/workflows/scraper.yml/dispatches",
+                    json={"ref": "master"},
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                    timeout=10,
+                )
+                if resp.status_code == 204:
+                    st.sidebar.success("수집 시작됐습니다! 약 3분 후 '데이터 새로고침'을 눌러주세요.")
+                else:
+                    st.sidebar.error(f"실패 ({resp.status_code}): {resp.text[:200]}")
+            except Exception as e:
+                st.sidebar.error(f"오류: {e}")
+    st.sidebar.caption("클릭 후 'Run workflow' → 3분 후 데이터 새로고침")
+
+
 def _show_login():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:

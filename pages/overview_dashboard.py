@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from auth import require_login, show_user_sidebar
+from auth import require_login, show_user_sidebar, show_collect_button
 
 ROOT = Path(__file__).parent.parent
 
@@ -46,9 +46,7 @@ if st.sidebar.button("데이터 새로고침"):
 
 show_user_sidebar()
 
-st.sidebar.divider()
-st.sidebar.link_button("🔄 전체 데이터 재수집", "https://github.com/Hwnagseunghwan/foodcarevblog-dashboard/actions/workflows/scraper.yml", use_container_width=True)
-st.sidebar.caption("클릭 후 'Run workflow' → 3분 후 데이터 새로고침")
+show_collect_button()
 
 
 # ── 데이터 로드 ──────────────────────────────────────────────────
