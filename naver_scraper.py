@@ -229,6 +229,44 @@ def save_monthly_data(existing: dict, new_data: dict) -> dict:
     return merged
 
 
+# ── 월별 자동 갱신 ────────────────────────────────────────────────
+
+def update_monthly_from_daily(daily: dict):
+    """일별 데이터에서 완료된 달의 월별 합계를 계산해 blog_visitors_monthly.json 자동 갱신.
+    - 현재 진행 중인 달(이번 달)은 제외 (월이 끝나야 확정)
+    - 기존 월별 데이터 유지, 일별 데이터가 있는 달만 덮어쓰기
+    """
+    from collections import defaultdict
+
+    KST = timezone(timedelta(hours=9))
+    current_month = datetime.now(KST).strftime("%Y-%m")
+
+    # 일별 → 월별 합산 (완료된 달만)
+    monthly_sums: dict[str, int] = defaultdict(int)
+    for date_str, views in daily.items():
+        month = date_str[:7]        # "2026-03"
+        if month < current_month:  # 이번 달 제외
+            monthly_sums[month] += int(views or 0)
+
+    if not monthly_sums:
+        return
+
+    # 기존 monthly JSON 로드 후 덮어쓰기
+    existing_monthly = load_monthly_data()
+    updated_count = 0
+    for month_str, total in monthly_sums.items():
+        key = f"{month_str}-01"
+        if existing_monthly.get(key) != total:
+            existing_monthly[key] = total
+            updated_count += 1
+
+    if updated_count > 0:
+        save_monthly_data({}, existing_monthly)
+        print(f"월별 데이터 자동 갱신 완료: {updated_count}개월 업데이트")
+    else:
+        print("월별 데이터 변경 없음 (이미 최신)")
+
+
 # ── 메인 ──────────────────────────────────────────────────────────
 
 def main():
@@ -264,6 +302,9 @@ def main():
     existing = load_existing_data()
     merged = save_data(existing, new_data)
     print(f"일별 저장 완료: {DATA_FILE} ({len(merged)}일치)")
+
+    # 일별 데이터로 월별 합계 자동 갱신 (완료된 달만)
+    update_monthly_from_daily(merged)
 
     # 성공 시 쿠키 자동 갱신 & GitHub Secret 업데이트
     if updated_cookies:
