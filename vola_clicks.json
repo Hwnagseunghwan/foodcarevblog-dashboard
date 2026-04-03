@@ -3848,7 +3848,7 @@
         "shorturl": "https://vo.la/sJyPPIC",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/U/204",
         "title": "영양밥국찬 3식",
-        "total_clicks": 43,
+        "total_clicks": 44,
         "created_at": "2026-01-26"
       },
       "omA6sPL": {
@@ -3880,7 +3880,7 @@
         "shorturl": "https://vo.la/cKU5Ggu",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/103",
         "title": "초기 2",
-        "total_clicks": 245,
+        "total_clicks": 247,
         "created_at": "2026-01-21"
       },
       "hgLf09x": {
@@ -3904,7 +3904,7 @@
         "shorturl": "https://vo.la/EJDpgol",
         "longurl": "https://www.foodcare-cle.com/event/eventDetail/630",
         "title": "신규회원 혜택",
-        "total_clicks": 333,
+        "total_clicks": 334,
         "created_at": "2026-01-20"
       },
       "q4aCxhI": {
@@ -3912,7 +3912,7 @@
         "shorturl": "https://vo.la/q4aCxhI",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/104",
         "title": "중기",
-        "total_clicks": 177,
+        "total_clicks": 181,
         "created_at": "2026-01-20"
       },
       "V6UHvpb": {
@@ -7774,8 +7774,8 @@
         "shorturl": "https://vo.la/sJyPPIC",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/U/204",
         "created_at": "2026-01-26",
-        "daily_clicks": 3,
-        "total_clicks": 43
+        "daily_clicks": 4,
+        "total_clicks": 44
       },
       "omA6sPL": {
         "title": "영양찬",
@@ -7806,8 +7806,8 @@
         "shorturl": "https://vo.la/cKU5Ggu",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/103",
         "created_at": "2026-01-21",
-        "daily_clicks": 1,
-        "total_clicks": 245
+        "daily_clicks": 3,
+        "total_clicks": 247
       },
       "hgLf09x": {
         "title": "프로틴퓨레 3종",
@@ -7830,16 +7830,16 @@
         "shorturl": "https://vo.la/EJDpgol",
         "longurl": "https://www.foodcare-cle.com/event/eventDetail/630",
         "created_at": "2026-01-20",
-        "daily_clicks": 0,
-        "total_clicks": 333
+        "daily_clicks": 1,
+        "total_clicks": 334
       },
       "q4aCxhI": {
         "title": "중기",
         "shorturl": "https://vo.la/q4aCxhI",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/104",
         "created_at": "2026-01-20",
-        "daily_clicks": 0,
-        "total_clicks": 177
+        "daily_clicks": 4,
+        "total_clicks": 181
       },
       "V6UHvpb": {
         "title": "초기 1",
