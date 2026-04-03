@@ -35,6 +35,7 @@ jobs:
           NAVER_PW: ${{ secrets.NAVER_PW }}
           BLOG_ID: ${{ secrets.BLOG_ID }}
           NAVER_COOKIES: ${{ secrets.NAVER_COOKIES }}
+          GITHUB_PAT: ${{ secrets.MY_GITHUB_PAT }}
         run: python naver_scraper.py
 
       - name: VOLA 클릭수 수집 실행
