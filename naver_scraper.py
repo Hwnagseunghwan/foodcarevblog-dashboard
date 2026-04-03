@@ -48,17 +48,57 @@ def load_cookie_list() -> list:
     return []
 
 
+# ── 쿠키 저장 & GitHub Secret 자동 갱신 ──────────────────────────
+
+def save_cookies_and_update_secret(cookie_list: list):
+    """수집 성공 후 쿠키 파일 갱신 + GitHub Secret 자동 업데이트"""
+    if not cookie_list:
+        return
+    try:
+        with open(COOKIE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cookie_list, f, ensure_ascii=False, indent=2)
+        print(f"쿠키 파일 갱신 완료: {len(cookie_list)}개")
+    except Exception as e:
+        print(f"쿠키 파일 저장 오류: {e}")
+
+    # gh CLI로 GitHub Secret 자동 업데이트
+    try:
+        import subprocess
+        pat = os.environ.get("GITHUB_PAT", "")
+        env = os.environ.copy()
+        if pat:
+            env["GH_TOKEN"] = pat
+        result = subprocess.run(
+            ["gh", "secret", "set", "NAVER_COOKIES",
+             "--body", json.dumps(cookie_list, ensure_ascii=False),
+             "--repo", "Hwnagseunghwan/foodcarevblog-dashboard"],
+            capture_output=True, text=True, timeout=30, env=env
+        )
+        if result.returncode == 0:
+            print("GitHub Secret(NAVER_COOKIES) 자동 업데이트 완료")
+        else:
+            print(f"GitHub Secret 업데이트 실패: {result.stderr.strip()}")
+    except Exception as e:
+        print(f"GitHub Secret 업데이트 오류: {e}")
+
+
 # ── requests 방식 (Playwright 불필요) ──────────────────────────────
 
-def fetch_stat_api_requests(start_date: str) -> dict:
-    """requests로 네이버 통계 API 직접 호출"""
+def fetch_stat_api_requests(start_date: str) -> tuple[dict, list]:
+    """requests.Session으로 네이버 통계 API 직접 호출.
+    반환: (data_dict, updated_cookie_list)"""
     import requests
 
     cookie_list = load_cookie_list()
     if not cookie_list:
         raise Exception("쿠키 없음 - NAVER_COOKIES 환경변수 또는 naver_cookies.json 필요")
 
-    cookies = {c["name"]: c["value"] for c in cookie_list}
+    session = requests.Session()
+    for c in cookie_list:
+        session.cookies.set(c["name"], c["value"],
+                            domain=c.get("domain", ".naver.com"),
+                            path=c.get("path", "/"))
+
     timestamp = int(datetime.now().timestamp() * 1000)
     url = (
         f"https://blog.stat.naver.com/api/blog/daily/cv"
@@ -70,7 +110,7 @@ def fetch_stat_api_requests(start_date: str) -> dict:
         "Accept": "application/json, text/plain, */*",
     }
 
-    resp = requests.get(url, cookies=cookies, headers=headers, timeout=15)
+    resp = session.get(url, headers=headers, timeout=15)
     resp.raise_for_status()
 
     data = resp.json()
@@ -79,7 +119,16 @@ def fetch_stat_api_requests(start_date: str) -> dict:
         raise Exception("API 응답 데이터 없음 (쿠키 만료 가능성)")
 
     rows = stat_list[0].get("data", {}).get("rows", {})
-    return dict(zip(rows.get("date", []), rows.get("cv", [])))
+    result = dict(zip(rows.get("date", []), rows.get("cv", [])))
+
+    # 응답 후 갱신된 쿠키 추출 (Session이 Set-Cookie 자동 반영)
+    updated_cookies = [
+        {"name": c.name, "value": c.value,
+         "domain": c.domain or ".naver.com", "path": c.path or "/"}
+        for c in session.cookies
+    ]
+
+    return result, updated_cookies
 
 
 # ── Playwright 방식 (fallback) ────────────────────────────────────
@@ -190,11 +239,12 @@ def main():
     print(f"수집 기간: {START_DATE} ~ {yesterday}")
 
     new_data = {}
+    updated_cookies = []
 
-    # 1차: requests 방식 (API는 yesterday를 endDate로 사용 → 최근 15일치 반환)
+    # 1차: requests 방식 (Session으로 응답 쿠키 자동 갱신)
     try:
         print("requests 방식으로 수집 시도...")
-        new_data = fetch_stat_api_requests(yesterday)
+        new_data, updated_cookies = fetch_stat_api_requests(yesterday)
         print(f"requests 수집 성공: {len(new_data)}일치")
     except Exception as e:
         print(f"requests 실패: {e}")
@@ -214,6 +264,10 @@ def main():
     existing = load_existing_data()
     merged = save_data(existing, new_data)
     print(f"일별 저장 완료: {DATA_FILE} ({len(merged)}일치)")
+
+    # 성공 시 쿠키 자동 갱신 & GitHub Secret 업데이트
+    if updated_cookies:
+        save_cookies_and_update_secret(updated_cookies)
 
 
 if __name__ == "__main__":
