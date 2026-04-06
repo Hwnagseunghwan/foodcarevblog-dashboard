@@ -164,7 +164,7 @@ async def _login_playwright(page, context):
     print("로그인 성공")
 
 
-async def _fetch_stat_playwright(start_date: str) -> dict:
+async def _fetch_stat_playwright(start_date: str) -> tuple[dict, list]:
     from playwright.async_api import async_playwright
     result = {}
 
@@ -181,10 +181,29 @@ async def _fetch_stat_playwright(start_date: str) -> dict:
                 print(f"API 파싱 오류: {e}")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-infobars",
+                "--lang=ko-KR",
+            ]
         )
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            locale="ko-KR",
+            timezone_id="Asia/Seoul",
+            viewport={"width": 1920, "height": 1080},
+        )
+        # headless 탐지 우회 (navigator.webdriver 제거 등)
+        await context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.chrome = {runtime: {}, loadTimes: function(){}, csi: function(){}, app: {}};
+            Object.defineProperty(navigator, 'languages', {get: () => ['ko-KR', 'ko']});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+        """)
         page = await context.new_page()
         cookie_loaded = await _load_cookies_playwright(context)
         if not cookie_loaded or not await _is_logged_in(page):
@@ -194,9 +213,17 @@ async def _fetch_stat_playwright(start_date: str) -> dict:
         await page.goto(f"https://admin.blog.naver.com/{BLOG_ID}/stat/today", timeout=30000)
         await asyncio.sleep(7)
         page.remove_listener("response", on_response)
+
+        # 로그인 후 쿠키 추출 (다음 실행에서 재사용)
+        raw_cookies = await context.cookies()
+        cookie_list = [
+            {"name": c["name"], "value": c["value"],
+             "domain": c.get("domain", ".naver.com"), "path": c.get("path", "/")}
+            for c in raw_cookies
+        ]
         await browser.close()
 
-    return result
+    return result, cookie_list
 
 
 # ── 데이터 저장 ────────────────────────────────────────────────────
@@ -286,11 +313,14 @@ def main():
         print(f"requests 수집 성공: {len(new_data)}일치")
     except Exception as e:
         print(f"requests 실패: {e}")
-        # 2차: Playwright fallback
+        # 2차: Playwright fallback (stealth 모드 - headless 탐지 우회 + ID/PW 자동 로그인)
         try:
             print("Playwright 방식으로 재시도...")
-            new_data = asyncio.run(_fetch_stat_playwright(yesterday))
+            new_data, playwright_cookies = asyncio.run(_fetch_stat_playwright(yesterday))
             print(f"Playwright 수집 성공: {len(new_data)}일치")
+            # Playwright 로그인으로 얻은 쿠키를 Secret에 저장 (자가복구)
+            if not updated_cookies and playwright_cookies:
+                updated_cookies = playwright_cookies
         except Exception as e2:
             print(f"Playwright 실패: {e2}")
 
