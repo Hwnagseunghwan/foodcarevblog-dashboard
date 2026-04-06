@@ -4414,7 +4414,7 @@
         "shorturl": "https://vo.la/di5alrS",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/105",
         "title": "후기1 죽3식",
-        "total_clicks": 61,
+        "total_clicks": 63,
         "created_at": "2026-02-04"
       },
       "sKriV6y": {
@@ -4430,7 +4430,7 @@
         "shorturl": "https://vo.la/RFo11jS",
         "longurl": "https://www.foodcare-cle.com/shop/goodsView/0000010672",
         "title": "과일&치즈퓨레 6종",
-        "total_clicks": 11,
+        "total_clicks": 12,
         "created_at": "2026-02-03"
       },
       "I9jOVNE": {
@@ -4462,7 +4462,7 @@
         "shorturl": "https://vo.la/gezfiAh",
         "longurl": "https://www.foodcare-cle.com/shop/goodsView/0000010676",
         "title": "유기농 그릭요거트 플레인 6병",
-        "total_clicks": 62,
+        "total_clicks": 63,
         "created_at": "2026-01-29"
       },
       "qmKj1PF": {
@@ -4502,7 +4502,7 @@
         "shorturl": "https://vo.la/sJyPPIC",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/U/204",
         "title": "영양밥국찬 3식",
-        "total_clicks": 45,
+        "total_clicks": 46,
         "created_at": "2026-01-26"
       },
       "omA6sPL": {
@@ -4510,7 +4510,7 @@
         "shorturl": "https://vo.la/omA6sPL",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/U/203",
         "title": "영양찬",
-        "total_clicks": 19,
+        "total_clicks": 20,
         "created_at": "2026-01-26"
       },
       "dANzb5A": {
@@ -4534,7 +4534,7 @@
         "shorturl": "https://vo.la/cKU5Ggu",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/103",
         "title": "초기 2",
-        "total_clicks": 250,
+        "total_clicks": 251,
         "created_at": "2026-01-21"
       },
       "hgLf09x": {
@@ -4550,7 +4550,7 @@
         "shorturl": "https://vo.la/ol2MkNw",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/107",
         "title": "후기 2",
-        "total_clicks": 44,
+        "total_clicks": 45,
         "created_at": "2026-01-21"
       },
       "EJDpgol": {
@@ -4558,7 +4558,7 @@
         "shorturl": "https://vo.la/EJDpgol",
         "longurl": "https://www.foodcare-cle.com/event/eventDetail/630",
         "title": "신규회원 혜택",
-        "total_clicks": 342,
+        "total_clicks": 345,
         "created_at": "2026-01-20"
       },
       "q4aCxhI": {
@@ -4574,7 +4574,7 @@
         "shorturl": "https://vo.la/V6UHvpb",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/102",
         "title": "초기 1",
-        "total_clicks": 138,
+        "total_clicks": 139,
         "created_at": "2026-01-20"
       }
     }
@@ -8994,8 +8994,8 @@
         "shorturl": "https://vo.la/di5alrS",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/105",
         "created_at": "2026-02-04",
-        "daily_clicks": 1,
-        "total_clicks": 61
+        "daily_clicks": 3,
+        "total_clicks": 63
       },
       "sKriV6y": {
         "title": "Real 100% 망고퓨레",
@@ -9010,8 +9010,8 @@
         "shorturl": "https://vo.la/RFo11jS",
         "longurl": "https://www.foodcare-cle.com/shop/goodsView/0000010672",
         "created_at": "2026-02-03",
-        "daily_clicks": 0,
-        "total_clicks": 11
+        "daily_clicks": 1,
+        "total_clicks": 12
       },
       "I9jOVNE": {
         "title": "클레 라이스바 10봉",
@@ -9042,8 +9042,8 @@
         "shorturl": "https://vo.la/gezfiAh",
         "longurl": "https://www.foodcare-cle.com/shop/goodsView/0000010676",
         "created_at": "2026-01-29",
-        "daily_clicks": 0,
-        "total_clicks": 62
+        "daily_clicks": 1,
+        "total_clicks": 63
       },
       "qmKj1PF": {
         "title": "유기농 그릭요거트 플레인 3병",
@@ -9082,16 +9082,16 @@
         "shorturl": "https://vo.la/sJyPPIC",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/U/204",
         "created_at": "2026-01-26",
-        "daily_clicks": 1,
-        "total_clicks": 45
+        "daily_clicks": 2,
+        "total_clicks": 46
       },
       "omA6sPL": {
         "title": "영양찬",
         "shorturl": "https://vo.la/omA6sPL",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/U/203",
         "created_at": "2026-01-26",
-        "daily_clicks": 0,
-        "total_clicks": 19
+        "daily_clicks": 1,
+        "total_clicks": 20
       },
       "dANzb5A": {
         "title": "후기무른밥",
@@ -9114,8 +9114,8 @@
         "shorturl": "https://vo.la/cKU5Ggu",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/103",
         "created_at": "2026-01-21",
-        "daily_clicks": 1,
-        "total_clicks": 250
+        "daily_clicks": 2,
+        "total_clicks": 251
       },
       "hgLf09x": {
         "title": "프로틴퓨레 3종",
@@ -9130,16 +9130,16 @@
         "shorturl": "https://vo.la/ol2MkNw",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/107",
         "created_at": "2026-01-21",
-        "daily_clicks": 0,
-        "total_clicks": 44
+        "daily_clicks": 1,
+        "total_clicks": 45
       },
       "EJDpgol": {
         "title": "신규회원 혜택",
         "shorturl": "https://vo.la/EJDpgol",
         "longurl": "https://www.foodcare-cle.com/event/eventDetail/630",
         "created_at": "2026-01-20",
-        "daily_clicks": 1,
-        "total_clicks": 342
+        "daily_clicks": 4,
+        "total_clicks": 345
       },
       "q4aCxhI": {
         "title": "중기",
@@ -9154,8 +9154,8 @@
         "shorturl": "https://vo.la/V6UHvpb",
         "longurl": "https://www.foodcare-cle.com/shop/mealPlan/E/102",
         "created_at": "2026-01-20",
-        "daily_clicks": 0,
-        "total_clicks": 138
+        "daily_clicks": 1,
+        "total_clicks": 139
       }
     }
   }
