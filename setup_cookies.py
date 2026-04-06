@@ -56,6 +56,17 @@ async def auto_login_and_save() -> bool:
         await asyncio.sleep(0.5)
         await page.fill("#pw", NAVER_PW)
         await asyncio.sleep(0.5)
+
+        # IP보안 ON → OFF 전환
+        try:
+            ip_toggle = page.locator(".set_ip_check").first
+            if await ip_toggle.is_visible(timeout=2000):
+                await ip_toggle.click()
+                await asyncio.sleep(0.5)
+                print("   IP보안 OFF 전환 완료")
+        except Exception:
+            pass
+
         await page.click(".btn_login")
         print("   로그인 버튼 클릭 - 결과 대기 중... (최대 30초)")
 

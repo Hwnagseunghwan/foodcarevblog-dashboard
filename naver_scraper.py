@@ -181,10 +181,19 @@ async def _login_playwright(page, context):
         raise Exception("NAVER_ID/NAVER_PW 미설정")
     await page.goto("https://nid.naver.com/nidlogin.login", wait_until="domcontentloaded", timeout=30000)
     await asyncio.sleep(2)
-    await page.click("#id")
-    await page.type("#id", NAVER_ID, delay=80)
-    await page.click("#pw")
-    await page.type("#pw", NAVER_PW, delay=80)
+    await page.fill("#id", NAVER_ID)
+    await asyncio.sleep(0.5)
+    await page.fill("#pw", NAVER_PW)
+    await asyncio.sleep(0.5)
+    # IP보안 ON → OFF 전환
+    try:
+        ip_toggle = page.locator(".set_ip_check").first
+        if await ip_toggle.is_visible(timeout=2000):
+            await ip_toggle.click()
+            await asyncio.sleep(0.5)
+            print("IP보안 OFF 전환 완료")
+    except Exception:
+        pass
     await page.click(".btn_login")
     await asyncio.sleep(3)
     if "nidlogin" in page.url:
