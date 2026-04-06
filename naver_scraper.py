@@ -26,8 +26,36 @@ START_DATE  = "2026-03-01"
 
 # ── 쿠키 로드 ──────────────────────────────────────────────────────
 
+def load_cookie_list_from_browser() -> list:
+    """로컬 Chrome/Edge 브라우저에서 네이버 쿠키 직접 추출"""
+    try:
+        import browser_cookie3
+        for loader, name in [(browser_cookie3.chrome, "Chrome"), (browser_cookie3.edge, "Edge")]:
+            try:
+                jar = loader(domain_name=".naver.com")
+                cookies = [
+                    {"name": c.name, "value": c.value,
+                     "domain": c.domain or ".naver.com", "path": c.path or "/"}
+                    for c in jar if c.value
+                ]
+                if cookies:
+                    print(f"브라우저({name})에서 쿠키 로드: {len(cookies)}개")
+                    return cookies
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    return []
+
+
 def load_cookie_list() -> list:
-    """환경변수 → st.secrets → 파일 순서로 쿠키 로드"""
+    """브라우저 직접 추출 → 환경변수 → st.secrets → 파일 순서로 쿠키 로드"""
+    # 1순위: 로컬 Chrome/Edge 쿠키 직접 추출 (크롤링 PC 전용, 항상 최신)
+    browser_cookies = load_cookie_list_from_browser()
+    if browser_cookies:
+        return browser_cookies
+
+    # 2순위: 환경변수 또는 파일
     cookie_env = os.environ.get("NAVER_COOKIES")
     if not cookie_env:
         try:
