@@ -145,7 +145,7 @@ else:
     with tab1:
         # 시작일 선택 반영
         date_options = sorted(df_all["date"].dt.strftime("%Y-%m-%d").unique().tolist())
-        default_start = "2026-03-18"
+        default_start = date_options[-14] if len(date_options) >= 14 else date_options[0]
         daily_start = st.session_state.get("vola_daily_start", default_start)
 
         recent_dates = [d for d in date_options if d >= daily_start][:14]
