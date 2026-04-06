@@ -48,7 +48,7 @@ async def auto_login_and_save() -> bool:
         )
         page = await context.new_page()
 
-        await page.goto("https://nid.naver.com/nidlogin.login", wait_until="domcontentloaded")
+        await page.goto("https://nid.naver.com/nidlogin.login?mode=form&url=https://www.naver.com/", wait_until="domcontentloaded")
         await asyncio.sleep(2)
 
         # 아이디/비밀번호 입력
@@ -57,27 +57,27 @@ async def auto_login_and_save() -> bool:
         await page.fill("#pw", NAVER_PW)
         await asyncio.sleep(0.5)
 
-        # IP보안 ON → OFF 전환 (여러 셀렉터 순서대로 시도)
-        ip_selectors = [
-            ".set_ip_check",
-            "#ip_check",
-            "label[for='ip_check']",
-            ".chk_wrap .ico_on",
-            "span.ico_on",
-        ]
-        ip_turned_off = False
-        for sel in ip_selectors:
-            try:
-                elem = page.locator(sel).first
-                if await elem.is_visible(timeout=1000):
-                    await elem.click()
-                    await asyncio.sleep(0.5)
-                    print(f"   IP보안 OFF 전환 완료 (셀렉터: {sel})")
-                    ip_turned_off = True
-                    break
-            except Exception:
-                continue
-        if not ip_turned_off:
+        # IP보안 ON → OFF 전환 (JavaScript로 직접 탐색)
+        ip_turned_off = await page.evaluate("""
+            () => {
+                const tags = ['a', 'button', 'label', 'span', 'div', 'em'];
+                for (const tag of tags) {
+                    for (const el of document.querySelectorAll(tag)) {
+                        if (el.textContent.trim().includes('IP보안') ||
+                            el.className.includes('ip_check') ||
+                            el.className.includes('ip_sec')) {
+                            el.click();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        """)
+        await asyncio.sleep(0.5)
+        if ip_turned_off:
+            print("   IP보안 OFF 전환 완료")
+        else:
             print("   ⚠️ IP보안 토글을 찾지 못함 → 스크린샷 저장: login_debug.png")
             await page.screenshot(path="login_debug.png")
 
