@@ -145,8 +145,12 @@ else:
     with tab1:
         # 시작일 선택 반영
         date_options = sorted(df_all["date"].dt.strftime("%Y-%m-%d").unique().tolist())
-        default_start = "2026-03-18"
-        daily_start = st.session_state.get("vola_daily_start", default_start)
+        default_start = date_options[-14] if len(date_options) >= 14 else date_options[0]
+        stored = st.session_state.get("vola_daily_start", default_start)
+        # 저장된 날짜가 기본값보다 이전이면 리셋 (예전 고정값 무효화)
+        daily_start = stored if stored >= default_start else default_start
+        if daily_start != stored:
+            st.session_state["vola_daily_start"] = daily_start
 
         recent_dates = [d for d in date_options if d >= daily_start][:14]
         df_recent = df_all[df_all["date"].dt.strftime("%Y-%m-%d").isin(recent_dates)]

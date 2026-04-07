@@ -1,5 +1,6 @@
 .env
 naver_cookies.json
+google_credentials.json
 *.log
 debug_*.png
 __pycache__/
