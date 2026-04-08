@@ -72,31 +72,41 @@ async def fetch_stat_playwright(start_date: str) -> dict:
         """)
         page = await context.new_page()
 
-        # 로그인
         print(f"네이버 로그인 시도 (ID: {NAVER_ID[:3]}***)")
         await page.goto("https://nid.naver.com/nidlogin.login", wait_until="domcontentloaded", timeout=30000)
         await asyncio.sleep(2)
+
+        # 1단계: IP보안 OFF 전환 (ID/PW 입력 전에 먼저)
+        ip_secured = False
+        try:
+            toggle = page.locator(".set_ip_check, #ip_secure_check, [class*='ip_check']").first
+            if await toggle.is_visible(timeout=3000):
+                await toggle.click()
+                await asyncio.sleep(0.5)
+                print("IP보안 OFF 전환 완료")
+                ip_secured = True
+            else:
+                print("IP보안 토글 없음 (이미 OFF 상태)")
+                ip_secured = True
+        except Exception as e:
+            await browser.close()
+            raise Exception(f"IP보안 OFF 전환 실패 - 수동 확인 필요: {e}")
+
+        if not ip_secured:
+            await browser.close()
+            raise Exception("IP보안 OFF 전환 실패 - 수동 확인 필요")
+
+        # 2단계: ID/PW 입력 후 로그인
         await page.fill("#id", NAVER_ID)
         await asyncio.sleep(0.5)
         await page.fill("#pw", NAVER_PW)
         await asyncio.sleep(0.5)
-
-        # IP보안 OFF 전환 (켜져 있으면 로그인 후 추가 인증 발생)
-        try:
-            toggle = page.locator(".set_ip_check, #ip_secure_check, [class*='ip']").first
-            if await toggle.is_visible(timeout=2000):
-                await toggle.click()
-                await asyncio.sleep(0.5)
-                print("IP보안 OFF 전환 완료")
-        except Exception:
-            pass
-
         await page.click(".btn_login")
         await asyncio.sleep(4)
 
         if "nidlogin" in page.url:
             await browser.close()
-            raise Exception("네이버 로그인 실패 (IP 추가인증 또는 ID/PW 오류)")
+            raise Exception("네이버 로그인 실패 (ID/PW 오류 또는 추가 인증 필요)")
 
         print("로그인 성공")
 
