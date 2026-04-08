@@ -1,5 +1,6 @@
 .env
 naver_cookies.json
+nature_food_cookies.json
 google_credentials.json
 *.log
 debug_*.png
