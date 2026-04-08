@@ -137,11 +137,12 @@ else:
         avg_kw = df_f.merge(kw_stats, on="code", how="left")["키워드수"].mean()
         avg_search = df_f.merge(kw_stats, on="code", how="left")["검색량합계"].mean()
 
-        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-        col_s1.metric("총 원고 송출량", f"{total_sent}건")
-        for i, writer in enumerate(sorted(df_f["담당자"].dropna().unique())):
+        writers = sorted(df_f["담당자"].dropna().unique())
+        cols = st.columns(1 + len(writers))
+        cols[0].metric("총 원고 송출량", f"{total_sent}건")
+        for i, writer in enumerate(writers):
             cnt = len(df_f[df_f["담당자"] == writer])
-            [col_s2, col_s3, col_s4][i].metric(f"{writer}", f"{cnt}건")
+            cols[i + 1].metric(f"{writer}", f"{cnt}건")
 
         st.divider()
 
