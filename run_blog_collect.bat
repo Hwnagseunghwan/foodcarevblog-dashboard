@@ -17,10 +17,11 @@ set RESULT=%ERRORLEVEL%
 
 if %RESULT% EQU 0 (
     echo [%date% %time%] 수집 성공 - GitHub 업로드 중... >> %LOG% 2>&1
-    git add blog_visitors.json blog_visitors_monthly.json naver_cookies.json >> %LOG% 2>&1
+    git add blog_visitors.json blog_visitors_monthly.json >> %LOG% 2>&1
     git diff --staged --quiet
     if errorlevel 1 (
         git commit -m "data: %date% 블로그 조회수 업데이트 (로컬 자동수집)" >> %LOG% 2>&1
+        git pull --rebase >> %LOG% 2>&1
         git push >> %LOG% 2>&1
         echo [%date% %time%] GitHub 업로드 완료 >> %LOG% 2>&1
     ) else (
