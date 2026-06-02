@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-06-01 19:58:22",
+  "updated_at": "2026-06-02 00:40:09",
   "rows": [
     {
       "year": 2026,
@@ -1326,10 +1326,21 @@
       "month": 6,
       "week": 23,
       "date": "2026. 6. 1 ",
-      "https://vo.la/fdkdbuY  \n클레 홈페이지 조회수": 8,
+      "https://vo.la/fdkdbuY  \n클레 홈페이지 조회수": 52,
       "https://vo.la/pZWJXIP\n메추리알 장조림 상페 조회수": 0,
       "https://vo.la/n1Xi7hs\n소고기 장조림 상페 조회수": 0,
       "https://vo.la/4mmrOYA\n보리차 상페 조회수": 2,
+      "비고 ": ""
+    },
+    {
+      "year": 2026,
+      "month": 6,
+      "week": 23,
+      "date": "2026. 6. 2 ",
+      "https://vo.la/fdkdbuY  \n클레 홈페이지 조회수": 21,
+      "https://vo.la/pZWJXIP\n메추리알 장조림 상페 조회수": 0,
+      "https://vo.la/n1Xi7hs\n소고기 장조림 상페 조회수": 0,
+      "https://vo.la/4mmrOYA\n보리차 상페 조회수": 0,
       "비고 ": ""
     }
   ]
