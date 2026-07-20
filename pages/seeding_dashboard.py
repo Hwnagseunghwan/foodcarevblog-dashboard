@@ -252,20 +252,24 @@ with tab_sent:
 
     # 제품별 송출량
     st.subheader("제품별 송출량")
-    grp_prod = df_f.groupby(["제품명", "브랜드명"]).size().reset_index(name="송출량")
-    grp_prod = grp_prod.sort_values("송출량", ascending=False)
-    bar_p = alt.Chart(grp_prod).mark_bar().encode(
-        x=alt.X("송출량:Q", title="송출량"),
-        y=alt.Y("제품명:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
-        color=alt.Color("브랜드명:N", title="브랜드명"),
-        tooltip=["제품명", "브랜드명", "송출량"]
-    )
-    text_p = alt.Chart(grp_prod).mark_text(dx=5, fontSize=11, align="left").encode(
-        x=alt.X("송출량:Q"),
-        y=alt.Y("제품명:N", sort="-x"),
-        text=alt.Text("송출량:Q")
-    )
-    st.altair_chart(bar_p + text_p, use_container_width=True)
+    _prod_grp_cols = [c for c in ["제품명", "브랜드명"] if c in df_f.columns]
+    if _prod_grp_cols:
+        grp_prod = df_f.groupby(_prod_grp_cols).size().reset_index(name="송출량")
+        grp_prod = grp_prod.sort_values("송출량", ascending=False)
+        bar_p = alt.Chart(grp_prod).mark_bar().encode(
+            x=alt.X("송출량:Q", title="송출량"),
+            y=alt.Y("제품명:N" if "제품명" in _prod_grp_cols else "브랜드명:N", sort="-x", title=None, axis=alt.Axis(labelLimit=300)),
+            color=alt.Color("브랜드명:N", title="브랜드명") if "브랜드명" in _prod_grp_cols else alt.value("steelblue"),
+            tooltip=_prod_grp_cols + ["송출량"]
+        )
+        text_p = alt.Chart(grp_prod).mark_text(dx=5, fontSize=11, align="left").encode(
+            x=alt.X("송출량:Q"),
+            y=alt.Y("제품명:N" if "제품명" in _prod_grp_cols else "브랜드명:N", sort="-x"),
+            text=alt.Text("송출량:Q")
+        )
+        st.altair_chart(bar_p + text_p, use_container_width=True)
+    else:
+        st.info("제품명/브랜드명 데이터가 없습니다.")
 
     st.divider()
 
