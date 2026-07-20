@@ -153,7 +153,7 @@ with tab_sent:
     col_k1.metric("원고당 평균 키워드 수", f"{avg_kw:.1f}개")
     col_k2.metric("원고당 평균 검색량(M) 합계", f"{avg_search:,.0f}")
 
-    tbl = df_f[["code", "담당자", "블로그명", "브랜드명", "제품명", "parsed_date"]].copy()
+    tbl = df_f.reindex(columns=["code", "담당자", "블로그명", "브랜드명", "제품명", "parsed_date"]).copy()
     tbl = tbl.merge(kw_stats, on="code", how="left")
     tbl["parsed_date"] = tbl["parsed_date"].dt.strftime("%Y-%m-%d").where(tbl["parsed_date"].notna(), "")
     tbl.columns = ["code", "담당자", "블로그명", "브랜드명", "제품명", "날짜", "키워드 수", "검색량(M) 합계"]
