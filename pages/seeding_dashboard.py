@@ -561,7 +561,7 @@ with tab_kw:
         검색량합계=("검색량(M)", "sum"),
         노출수=("노출여부", lambda x: x.isin(EXPOSED_VAL).sum())
     ).reset_index()
-    prod_grp["노출률"] = (prod_grp["노출수"] / prod_grp["키워드수"] * 100).round(1)
+    prod_grp["노출률"] = (pd.to_numeric(prod_grp["노출수"], errors="coerce") / pd.to_numeric(prod_grp["키워드수"], errors="coerce") * 100).round(1).fillna(0)
     prod_grp = prod_grp.sort_values("키워드수", ascending=False).reset_index(drop=True)
     st.dataframe(
         prod_grp,
