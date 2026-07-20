@@ -303,15 +303,17 @@ with tab_kw:
 
     # 필터 (최상단)
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-    f_kw_brand   = col_f1.selectbox("브랜드 필터", ["전체"] + sorted(df_kw["브랜드명"].dropna().unique().tolist()), key="kw_brand")
-    f_kw_product = col_f2.selectbox("제품 필터", ["전체"] + sorted(df_kw["제품명"].dropna().unique().tolist()), key="kw_product")
+    _brand_opts = sorted(df_kw["브랜드명"].dropna().unique().tolist()) if "브랜드명" in df_kw.columns else []
+    _product_opts = sorted(df_kw["제품명"].dropna().unique().tolist()) if "제품명" in df_kw.columns else []
+    f_kw_brand   = col_f1.selectbox("브랜드 필터", ["전체"] + _brand_opts, key="kw_brand")
+    f_kw_product = col_f2.selectbox("제품 필터", ["전체"] + _product_opts, key="kw_product")
     f_kw_exposed = col_f3.selectbox("노출여부 필터", ["전체", "노출", "미노출"], key="kw_exposed")
     f_kw_view    = col_f4.selectbox("단위", ["월별", "주간별", "일별"], key="kw_view")
 
     df_kf = df_kw.copy()
-    if f_kw_brand != "전체":
+    if f_kw_brand != "전체" and "브랜드명" in df_kf.columns:
         df_kf = df_kf[df_kf["브랜드명"] == f_kw_brand]
-    if f_kw_product != "전체":
+    if f_kw_product != "전체" and "제품명" in df_kf.columns:
         df_kf = df_kf[df_kf["제품명"] == f_kw_product]
     if f_kw_exposed == "노출":
         df_kf = df_kf[df_kf["노출여부"].isin(EXPOSED_VAL)]
@@ -566,7 +568,7 @@ with tab_kw:
     st.divider()
 
     with st.expander("키워드 원본 데이터 보기"):
-        kw_show = df_kf[["parsed_date", "브랜드명", "제품명", "메인/서브", "키워드", "검색량(M)", "노출여부", "최초순위", "Blog_URL"]].copy()
+        kw_show = df_kf.reindex(columns=["parsed_date", "브랜드명", "제품명", "메인/서브", "키워드", "검색량(M)", "노출여부", "최초순위", "Blog_URL"]).copy()
         kw_show["parsed_date"] = kw_show["parsed_date"].dt.strftime("%Y-%m-%d")
         kw_show = kw_show.sort_values("parsed_date", ascending=False).reset_index(drop=True)
         st.dataframe(
